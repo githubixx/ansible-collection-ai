@@ -1,0 +1,182 @@
+---
+- name: Run llama artifact probe
+  ansible.builtin.import_tasks: probe.yml
+  tags:
+    - never
+    - llama-probe
+
+- name: Validate supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['system'] == 'Linux'
+      - >-
+        (ansible_facts['distribution'] == 'Ubuntu' and
+        ansible_facts['distribution_major_version'] in ['24', '26']) or
+        ansible_facts['distribution'] == 'Archlinux'
+      - ansible_facts['architecture'] == 'x86_64'
+      - llama_arch == 'x86_64'
+      - ansible_facts['service_mgr'] == 'systemd'
+      - llama_artifact_url | length > 0
+      - llama_artifact_checksum is match('^sha256:[0-9a-f]{64}$')
+    fail_msg: >-
+      githubixx.ai.llama supports x86_64 Ubuntu 24.04/26.04 and Arch Linux
+      with systemd. Set a pinned llama_artifact_url and llama_artifact_checksum,
+      or run with --tags llama-probe to print a host-specific suggestion.
+
+- name: Validate llama instance configuration
+  ansible.builtin.assert:
+    that:
+      - item.name is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - item.api_url is match('^http://[^/]+(:[0-9]+)?$')
+      - item.mode in ['router', 'single_model']
+      - item.environment is iterable
+      - item.arguments is iterable
+    fail_msg: >-
+      Every llama instance requires a safe unique name, an http API URL, a
+      router or single_model mode, and environment and arguments lists.
+  loop: "{{ llama_instances }}"
+  loop_control:
+    label: "{{ item.name | default('missing name') }}"
+
+- name: Validate llama instance names are unique
+  ansible.builtin.assert:
+    that:
+      - llama_instances | map(attribute='name') | list | unique | length == llama_instances | length
+    fail_msg: llama instance names must be unique.
+
+- name: Install llama archive extraction prerequisite
+  ansible.builtin.package:
+    name: zstd
+    state: present
+
+- name: Create llama group
+  ansible.builtin.group:
+    name: "{{ llama_group }}"
+    system: true
+    state: present
+
+- name: Create llama service user
+  ansible.builtin.user:
+    name: "{{ llama_user }}"
+    group: "{{ llama_group }}"
+    home: "{{ llama_home }}"
+    create_home: true
+    shell: "/usr/sbin/nologin"
+    system: true
+    state: present
+
+- name: Ensure llama cache directory exists
+  ansible.builtin.file:
+    path: "{{ llama_cache_directory }}"
+    state: directory
+    owner: "{{ llama_user }}"
+    group: "{{ llama_group }}"
+    mode: "0750"
+
+- name: Query existing llama version
+  ansible.builtin.command:
+    argv:
+      - "{{ llama_binary }}"
+      - version
+  register: _llama_installed_version_query
+  changed_when: false
+  failed_when: false
+
+- name: Define existing llama version
+  ansible.builtin.set_fact:
+    _llama_installed_version: >-
+      {{ _llama_installed_version_query.stdout | regex_search('b[0-9]+') | default('') }}
+
+- name: Ensure llama download directory exists
+  when: _llama_installed_version != llama_version
+  ansible.builtin.file:
+    path: "{{ llama_download_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Download llama artifact
+  when: _llama_installed_version != llama_version
+  ansible.builtin.get_url:
+    url: "{{ llama_artifact_url }}"
+    dest: "{{ llama_download_directory }}/llama-app.zst"
+    checksum: "{{ llama_artifact_checksum }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Ensure llama binary directory exists
+  ansible.builtin.file:
+    path: "{{ llama_bin_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install llama binary
+  when: _llama_installed_version != llama_version
+  ansible.builtin.command:
+    argv:
+      - unzstd
+      - --force
+      - --output={{ llama_binary }}
+      - "{{ llama_download_directory }}/llama-app.zst"
+  changed_when: true
+  notify: Reload and restart llama instances
+
+- name: Set llama binary permissions
+  ansible.builtin.file:
+    path: "{{ llama_binary }}"
+    state: file
+    owner: root
+    group: root
+    mode: "{{ llama_binary_mode }}"
+
+- name: Remove llama download directory
+  when: _llama_installed_version != llama_version
+  ansible.builtin.file:
+    path: "{{ llama_download_directory }}"
+    state: absent
+
+- name: Install llama systemd services
+  ansible.builtin.template:
+    src: llama.service.j2
+    dest: "/etc/systemd/system/{{ item.name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ llama_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload and restart llama instances
+
+- name: Flush llama handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start llama services
+  ansible.builtin.systemd_service:
+    name: "{{ item.name }}.service"
+    daemon_reload: true
+    enabled: "{{ item.enabled }}"
+    state: "{{ 'started' if item.started else 'stopped' }}"
+  loop: "{{ llama_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+
+- name: Wait for llama loopback APIs
+  when:
+    - item.started
+    - item.api_url is match('^http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?$')
+  ansible.builtin.uri:
+    url: "{{ item.api_url }}{{ '/models' if item.mode == 'router' else '/health' }}"
+    status_code: 200
+  register: _llama_api
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: _llama_api.status == 200
+  loop: "{{ llama_instances }}"
+  loop_control:
+    label: "{{ item.name }}"

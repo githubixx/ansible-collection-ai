@@ -1,0 +1,180 @@
+---
+- name: Validate llama probe platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['system'] == 'Linux'
+      - ansible_facts['architecture'] == 'x86_64'
+    fail_msg: >-
+      githubixx.ai.llama's llama-probe currently supports Linux x86_64 only.
+
+- name: Check llama probe prerequisites
+  ansible.builtin.command:
+    argv:
+      - sh
+      - -c
+      - command -v curl && command -v unzstd
+  changed_when: false
+
+- name: Create llama probe download directory
+  ansible.builtin.file:
+    path: "{{ llama_probe_download_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Download llama CPU feature probe
+  ansible.builtin.get_url:
+    url: "{{ llama_probe_base_url }}/featcode"
+    dest: "{{ llama_probe_download_directory }}/featcode"
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Run llama CPU feature probe
+  ansible.builtin.command:
+    argv:
+      - "{{ llama_probe_download_directory }}/featcode"
+  register: _llama_probe_cpu_config
+  changed_when: false
+
+- name: Download llama CUDA probe
+  ansible.builtin.get_url:
+    url: "{{ llama_probe_base_url }}/cuda/probe/probe.zst"
+    dest: "{{ llama_probe_download_directory }}/cuda-probe.zst"
+    owner: root
+    group: root
+    mode: "0600"
+  register: _llama_probe_cuda_download
+  failed_when: false
+
+- name: Decompress llama CUDA probe
+  when: _llama_probe_cuda_download is succeeded
+  ansible.builtin.command:
+    argv:
+      - unzstd
+      - --force
+      - --output={{ llama_probe_download_directory }}/cuda-probe
+      - "{{ llama_probe_download_directory }}/cuda-probe.zst"
+  changed_when: true
+
+- name: Run llama CUDA probe
+  when: _llama_probe_cuda_download is succeeded
+  ansible.builtin.command:
+    argv:
+      - "{{ llama_probe_download_directory }}/cuda-probe"
+  register: _llama_probe_cuda_config
+  changed_when: false
+  failed_when: false
+
+- name: Download llama ROCm probe
+  ansible.builtin.get_url:
+    url: "{{ llama_probe_base_url }}/rocm/probe/probe.zst"
+    dest: "{{ llama_probe_download_directory }}/rocm-probe.zst"
+    owner: root
+    group: root
+    mode: "0600"
+  register: _llama_probe_rocm_download
+  failed_when: false
+
+- name: Decompress llama ROCm probe
+  when: _llama_probe_rocm_download is succeeded
+  ansible.builtin.command:
+    argv:
+      - unzstd
+      - --force
+      - --output={{ llama_probe_download_directory }}/rocm-probe
+      - "{{ llama_probe_download_directory }}/rocm-probe.zst"
+  changed_when: true
+
+- name: Run llama ROCm probe
+  when: _llama_probe_rocm_download is succeeded
+  ansible.builtin.command:
+    argv:
+      - "{{ llama_probe_download_directory }}/rocm-probe"
+  register: _llama_probe_rocm_config
+  changed_when: false
+  failed_when: false
+
+- name: Download llama Vulkan probe
+  ansible.builtin.get_url:
+    url: "{{ llama_probe_base_url }}/vulkan/probe/probe.zst"
+    dest: "{{ llama_probe_download_directory }}/vulkan-probe.zst"
+    owner: root
+    group: root
+    mode: "0600"
+  register: _llama_probe_vulkan_download
+  failed_when: false
+
+- name: Decompress llama Vulkan probe
+  when: _llama_probe_vulkan_download is succeeded
+  ansible.builtin.command:
+    argv:
+      - unzstd
+      - --force
+      - --output={{ llama_probe_download_directory }}/vulkan-probe
+      - "{{ llama_probe_download_directory }}/vulkan-probe.zst"
+  changed_when: true
+
+- name: Run llama Vulkan probe
+  when: _llama_probe_vulkan_download is succeeded
+  ansible.builtin.command:
+    argv:
+      - sh
+      - -c
+      - >-
+        "{{ llama_probe_download_directory }}/vulkan-probe" &&
+        "{{ llama_probe_download_directory }}/featcode"
+  register: _llama_probe_vulkan_config
+  changed_when: false
+  failed_when: false
+
+- name: Define llama probe result
+  ansible.builtin.set_fact:
+    _llama_probe_backend: >-
+      {{ 'cuda' if _llama_probe_cuda_config.stdout | default('') | length > 0
+      else 'rocm' if _llama_probe_rocm_config.stdout | default('') | length > 0
+      else 'vulkan' if _llama_probe_vulkan_config.stdout | default('') | length > 0
+      else 'cpu' }}
+    _llama_probe_config: >-
+      {{ (_llama_probe_cuda_config.stdout | default('') | split | first)
+      if _llama_probe_cuda_config.stdout | default('') | length > 0
+      else _llama_probe_rocm_config.stdout | default('') | trim
+      if _llama_probe_rocm_config.stdout | default('') | length > 0
+      else _llama_probe_vulkan_config.stdout | default('') | trim
+      if _llama_probe_vulkan_config.stdout | default('') | length > 0
+      else _llama_probe_cpu_config.stdout | trim }}
+
+- name: Define suggested llama artifact URL
+  ansible.builtin.set_fact:
+    _llama_probe_artifact_url: >-
+      {{ llama_probe_base_url ~ '/' ~ _llama_probe_backend ~ '/' ~
+      _llama_probe_config ~ '/llama-app.zst' }}
+
+- name: Download suggested llama artifact
+  ansible.builtin.get_url:
+    url: "{{ _llama_probe_artifact_url }}"
+    dest: "{{ llama_probe_download_directory }}/llama-app.zst"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Calculate suggested llama artifact checksum
+  ansible.builtin.command:
+    argv:
+      - sha256sum
+      - "{{ llama_probe_download_directory }}/llama-app.zst"
+  register: _llama_probe_artifact_checksum
+  changed_when: false
+
+- name: Report suggested llama artifact variables
+  ansible.builtin.debug:
+    msg: |-
+      llama_version: "{{ llama_probe_version }}"
+      llama_artifact_url: "{{ _llama_probe_artifact_url }}"
+      llama_artifact_checksum: "sha256:{{ _llama_probe_artifact_checksum.stdout.split()[0] }}"
+
+- name: Remove llama probe download directory
+  ansible.builtin.file:
+    path: "{{ llama_probe_download_directory }}"
+    state: absent

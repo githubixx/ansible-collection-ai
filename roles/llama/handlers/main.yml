@@ -1,0 +1,10 @@
+---
+- name: Reload and restart llama instances
+  ansible.builtin.systemd_service:
+    name: "{{ item.name }}.service"
+    daemon_reload: true
+    enabled: "{{ item.enabled }}"
+    state: "{{ 'restarted' if item.started else 'stopped' }}"
+  loop: "{{ llama_instances }}"
+  loop_control:
+    label: "{{ item.name }}"

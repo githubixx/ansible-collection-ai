@@ -1,0 +1,43 @@
+---
+# The official llama.app installer currently publishes feature-specific binaries.
+# Configure this pinned artifact pair after reviewing the llama-probe output.
+llama_version: "b10107"
+llama_artifact_url: ""
+llama_artifact_checksum: ""
+
+llama_arch: "{{ ansible_facts['architecture'] }}"
+llama_download_directory: "{{ ansible_facts['env']['TMPDIR'] | default('/tmp', true) }}/llama"
+llama_install_directory: "/usr/local"
+llama_bin_directory: "{{ llama_install_directory }}/bin"
+llama_binary: "{{ llama_bin_directory }}/llama"
+llama_binary_mode: "0755"
+
+llama_user: "llama"
+llama_group: "llama"
+llama_home: "/var/lib/llama"
+llama_cache_directory: "{{ llama_home }}/.cache/llama.cpp"
+
+# Use `ansible-playbook ... --tags llama-probe` to detect a host-specific
+# artifact and print values for llama_artifact_url and llama_artifact_checksum.
+llama_probe_bucket: "ggml-org/install.sh"
+llama_probe_version: "{{ llama_version }}"
+llama_probe_download_directory: "{{ ansible_facts['env']['TMPDIR'] | default('/tmp', true) }}/llama-probe"
+llama_probe_base_url: >-
+  {{ 'https://huggingface.co/buckets/' ~ llama_probe_bucket ~ '/resolve/' ~
+  llama_probe_version ~ '/x86_64/linux' }}
+
+# All instances share the service account and model cache. A router instance
+# has no LLAMA_ARG_MODEL and exposes the upstream dynamic model API.
+llama_instances:
+  - name: "llama"
+    api_url: "http://127.0.0.1:8080"
+    mode: "router"
+    environment:
+      - "HOME={{ llama_home }}"
+      - "LLAMA_CACHE={{ llama_cache_directory }}"
+      - "LLAMA_ARG_HOST=127.0.0.1"
+      - "LLAMA_ARG_PORT=8080"
+    environmentfile: ""
+    arguments: []
+    enabled: true
+    started: true
