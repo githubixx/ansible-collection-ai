@@ -1,0 +1,22 @@
+# Managed by githubixx.ai.openshell. Local changes will be overwritten.
+[Unit]
+Description=OpenShell Gateway (user)
+Documentation=https://docs.nvidia.com/openshell/latest/
+After=default.target
+
+[Service]
+Type=exec
+Environment=OPENSHELL_LOCAL_TLS_DIR=%h/{{ openshell_gateway_state_directory_name }}/tls
+EnvironmentFile=-%E/openshell/gateway.env
+ExecStartPre=/usr/bin/mkdir -p %E/openshell
+ExecStartPre={{ openshell_bin_directory }}/openshell-gateway generate-certs --output-dir ${OPENSHELL_LOCAL_TLS_DIR} --server-san host.openshell.internal
+ExecStart={{ openshell_bin_directory }}/openshell-gateway
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+PrivateTmp=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=default.target

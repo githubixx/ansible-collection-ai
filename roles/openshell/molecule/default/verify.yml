@@ -1,0 +1,96 @@
+---
+- name: Verify OpenShell installation
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    openshell_test_user: "{{ ansible_user | default(ansible_facts['user_id']) }}"
+  tasks:
+    - name: Query OpenShell test user
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ openshell_test_user }}"
+
+    - name: Define OpenShell test user facts
+      ansible.builtin.set_fact:
+        openshell_test_uid: "{{ ansible_facts['getent_passwd'][openshell_test_user][1] }}"
+        openshell_test_home: "{{ ansible_facts['getent_passwd'][openshell_test_user][4] }}"
+        openshell_test_bin_directory: "{{ ansible_facts['getent_passwd'][openshell_test_user][4] }}/.local/bin"
+
+    - name: Gather OpenShell binary metadata
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ openshell_test_bin_directory }}/openshell"
+        - "{{ openshell_test_bin_directory }}/openshell-gateway"
+      register: openshell_test_binaries
+
+    - name: Assert OpenShell binaries are installed
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.executable
+          - item.stat.pw_name == openshell_test_user
+          - item.stat.mode == '0755'
+      loop: "{{ openshell_test_binaries.results }}"
+
+    - name: Verify OpenShell CLI version command succeeds
+      ansible.builtin.command:
+        argv:
+          - "{{ openshell_test_bin_directory }}/openshell"
+          - --version
+      changed_when: false
+
+    - name: Gather OpenShell configuration metadata
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ openshell_test_home }}/.config/openshell/gateway.toml"
+        - "{{ openshell_test_home }}/.config/systemd/user/openshell-gateway.service"
+        - "{{ openshell_test_home }}/.local/state/openshell/tls/ca.crt"
+        - "{{ openshell_test_home }}/.local/state/openshell/tls/server/tls.crt"
+      register: openshell_test_configuration
+
+    - name: Assert OpenShell configuration and TLS state exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == openshell_test_user
+      loop: "{{ openshell_test_configuration.results }}"
+
+    - name: Retrieve OpenShell gateway user service state
+      become: true
+      become_user: "{{ openshell_test_user }}"
+      environment:
+        HOME: "{{ openshell_test_home }}"
+        XDG_RUNTIME_DIR: "/run/user/{{ openshell_test_uid }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ openshell_test_uid }}/bus"
+      ansible.builtin.systemd_service:
+        name: openshell-gateway.service
+        scope: user
+      register: openshell_test_gateway_service
+
+    - name: Assert OpenShell gateway user service is active
+      ansible.builtin.assert:
+        that:
+          - openshell_test_gateway_service.status.ActiveState == 'active'
+          - openshell_test_gateway_service.status.UnitFileState == 'enabled'
+
+    - name: Verify OpenShell status through the local gateway
+      become: true
+      become_user: "{{ openshell_test_user }}"
+      environment:
+        HOME: "{{ openshell_test_home }}"
+        XDG_RUNTIME_DIR: "/run/user/{{ openshell_test_uid }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ openshell_test_uid }}/bus"
+      ansible.builtin.command:
+        argv:
+          - "{{ openshell_test_bin_directory }}/openshell"
+          - status
+      register: openshell_test_status
+      changed_when: false
+
+    - name: Assert OpenShell reports a connected gateway
+      ansible.builtin.assert:
+        that:
+          - "'Version:' in openshell_test_status.stdout"

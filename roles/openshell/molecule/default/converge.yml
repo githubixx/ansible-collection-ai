@@ -1,0 +1,42 @@
+---
+- name: Install OpenShell
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    openshell_molecule_user: "vagrant"
+  tasks:
+    - name: Include githubixx.docker
+      ansible.builtin.include_role:
+        name: githubixx.docker
+
+    - name: Add the Molecule user to the Docker group
+      ansible.builtin.user:
+        name: "{{ openshell_molecule_user }}"
+        groups: docker
+        append: true
+
+    - name: Reset the connection after updating Docker group membership
+      ansible.builtin.meta: reset_connection
+
+    - name: Verify the Molecule user has Docker group membership
+      become: true
+      become_user: "{{ openshell_molecule_user }}"
+      ansible.builtin.command:
+        argv:
+          - id
+          - --groups
+          - --name
+      register: openshell_molecule_user_groups
+      changed_when: false
+
+    - name: Assert the Molecule user can access Docker group resources
+      ansible.builtin.assert:
+        that:
+          - "'docker' in openshell_molecule_user_groups.stdout.split()"
+
+    - name: Include OpenShell
+      ansible.builtin.include_role:
+        name: openshell
+      vars:
+        openshell_user: "{{ openshell_molecule_user }}"

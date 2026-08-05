@@ -1,0 +1,14 @@
+---
+- name: Reload and restart OpenShell gateway
+  become: true
+  become_user: "{{ openshell_user }}"
+  environment:
+    HOME: "{{ _openshell_user_home }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ _openshell_user_uid }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ _openshell_user_uid }}/bus"
+  ansible.builtin.systemd_service:
+    name: "{{ openshell_gateway_service_name }}"
+    daemon_reload: true
+    enabled: "{{ openshell_gateway_service_enabled }}"
+    state: "{{ 'restarted' if openshell_gateway_service_started else 'stopped' }}"
+    scope: user

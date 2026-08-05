@@ -1,0 +1,39 @@
+---
+# NVIDIA OpenShell release to install. Keep the CLI and gateway on the same release.
+openshell_version: "0.0.99"
+
+# This role currently supports the x86_64 release artifacts only.
+openshell_arch: "{{ ansible_facts['architecture'] }}"
+openshell_upstream_arch: "x86_64"
+
+openshell_download_directory: "{{ ansible_facts['env']['TMPDIR'] | default('/tmp', true) }}/openshell"
+openshell_binary_mode: "0755"
+
+openshell_cli_archive: "openshell-{{ openshell_upstream_arch }}-unknown-linux-musl.tar.gz"
+openshell_gateway_archive: "openshell-gateway-{{ openshell_upstream_arch }}-unknown-linux-gnu.tar.gz"
+openshell_release_url: "https://github.com/NVIDIA/OpenShell/releases/download/v{{ openshell_version }}"
+openshell_cli_url: "{{ openshell_release_url }}/{{ openshell_cli_archive }}"
+openshell_gateway_url: "{{ openshell_release_url }}/{{ openshell_gateway_archive }}"
+openshell_cli_checksum: "sha256:35725a358e42ef7f0f0393035536da317706b0febcc459a2011e0555f6c2b71c"
+openshell_gateway_checksum: "sha256:640d204dc3c6bc28bffa1f3d870897fc23bbc5ec0151a6c642083e958455cb49"
+
+# The local gateway runs as Ansible's connection user. Override when OpenShell
+# should be available to another user.
+openshell_user: "{{ ansible_user | default(ansible_facts['user_id']) }}"
+openshell_bin_directory: "{{ _openshell_user_home }}/.local/bin"
+openshell_owner: "{{ openshell_user }}"
+openshell_group: "{{ _openshell_user_group }}"
+openshell_gateway_service_name: "openshell-gateway.service"
+openshell_gateway_config_directory_name: ".config/openshell"
+openshell_gateway_state_directory_name: ".local/state/openshell"
+openshell_gateway_config_mode: "0640"
+openshell_gateway_state_mode: "0700"
+openshell_gateway_service_enabled: true
+openshell_gateway_service_started: true
+
+# Docker is deliberately not installed by this role. The target user must be
+# able to access the Docker socket and Docker is used by the default gateway
+# configuration.
+openshell_compute_driver: "docker"
+openshell_gateway_bind_address: "127.0.0.1:17670"
+openshell_gateway_name: "openshell"
