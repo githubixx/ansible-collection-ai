@@ -1,0 +1,24 @@
+# Managed by githubixx.ai.vllm. Local changes will be overwritten.
+[Unit]
+Description=vLLM OpenAI-compatible API service
+Documentation=https://docs.vllm.ai/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User={{ vllm_user }}
+Group={{ vllm_group }}
+WorkingDirectory={{ vllm_install_directory }}
+{% for environment in vllm_service_environment %}
+Environment="{{ environment }}"
+{% endfor %}
+{% if vllm_service_environmentfile | length > 0 %}
+EnvironmentFile="{{ vllm_service_environmentfile }}"
+{% endif %}
+ExecStart={{ vllm_venv_directory }}/bin/vllm serve {{ vllm_model }} {% for argument in vllm_service_arguments %}{{ argument }} {% endfor %}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

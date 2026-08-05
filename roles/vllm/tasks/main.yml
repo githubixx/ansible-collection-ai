@@ -1,0 +1,197 @@
+---
+- name: Validate supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['system'] == 'Linux'
+      - >-
+        (ansible_facts['distribution'] == 'Ubuntu' and
+        ansible_facts['distribution_major_version'] in ['24', '26']) or
+        ansible_facts['distribution'] == 'Archlinux'
+      - ansible_facts['architecture'] == 'x86_64'
+      - vllm_arch == 'x86_64'
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: >-
+      githubixx.ai.vllm supports x86_64 Ubuntu 24.04/26.04 and Arch Linux
+      with systemd.
+
+- name: Validate vLLM configuration
+  ansible.builtin.assert:
+    that:
+      - vllm_uv_executable | length > 0
+      - vllm_python_version == '3.12'
+      - vllm_accelerator in vllm_accelerator_profiles
+      - vllm_install_arguments | length > 0
+      - vllm_model | length > 0
+      - vllm_host | length > 0
+      - vllm_port | int > 0
+      - vllm_port | int < 65536
+    fail_msg: >-
+      vLLM requires uv, Python 3.12, a supported accelerator profile, a model,
+      and a valid service host and port.
+
+- name: Query uv executable
+  ansible.builtin.command:
+    argv:
+      - "{{ vllm_uv_executable }}"
+      - --version
+  changed_when: false
+
+- name: Create vLLM group
+  ansible.builtin.group:
+    name: "{{ vllm_group }}"
+    system: true
+    state: present
+
+- name: Create vLLM service user
+  ansible.builtin.user:
+    name: "{{ vllm_user }}"
+    group: "{{ vllm_group }}"
+    home: "{{ vllm_home }}"
+    create_home: true
+    shell: "/usr/sbin/nologin"
+    system: true
+    state: present
+
+- name: Ensure vLLM directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ vllm_user }}"
+    group: "{{ vllm_group }}"
+    mode: "0750"
+  loop:
+    - "{{ vllm_install_directory }}"
+    - "{{ vllm_cache_directory }}"
+    - "{{ vllm_models_directory }}"
+    - "{{ vllm_home }}/.config"
+
+- name: Query installed vLLM version
+  become: true
+  become_user: "{{ vllm_user }}"
+  ansible.builtin.command:
+    argv:
+      - "{{ vllm_venv_directory }}/bin/vllm"
+      - --version
+  register: _vllm_installed_version_query
+  changed_when: false
+  failed_when: false
+
+- name: Define installed vLLM version
+  ansible.builtin.set_fact:
+    _vllm_installed_version: >-
+      {{ (_vllm_installed_version_query.stdout |
+      regex_findall('[0-9]+\.[0-9]+\.[0-9]+') | first) | default('') }}
+
+- name: Check installed vLLM accelerator profile
+  ansible.builtin.stat:
+    path: "{{ vllm_venv_directory }}/.githubixx-ai-accelerator"
+  register: _vllm_accelerator_marker
+
+- name: Read installed vLLM accelerator profile
+  when: _vllm_accelerator_marker.stat.exists
+  ansible.builtin.slurp:
+    src: "{{ vllm_venv_directory }}/.githubixx-ai-accelerator"
+  register: _vllm_accelerator_marker_content
+
+- name: Define installed vLLM accelerator profile
+  ansible.builtin.set_fact:
+    _vllm_installed_accelerator: >-
+      {{ (_vllm_accelerator_marker_content.content | default('') | b64decode | trim) }}
+
+- name: Check vLLM systemd service unit
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ vllm_service_name }}"
+  register: _vllm_service_unit
+
+- name: Stop vLLM before changing accelerator profile
+  when:
+    - _vllm_installed_accelerator != vllm_accelerator
+    - _vllm_service_unit.stat.exists
+  ansible.builtin.systemd_service:
+    name: "{{ vllm_service_name }}"
+    state: stopped
+
+- name: Remove vLLM virtual environment for accelerator change
+  when:
+    - _vllm_installed_accelerator != vllm_accelerator
+  ansible.builtin.file:
+    path: "{{ vllm_venv_directory }}"
+    state: absent
+  notify: Reload and restart vLLM
+
+- name: Create vLLM virtual environment
+  when: >-
+    _vllm_installed_version != vllm_version or
+    _vllm_installed_accelerator != vllm_accelerator
+  become: true
+  become_user: "{{ vllm_user }}"
+  ansible.builtin.command:
+    argv:
+      - "{{ vllm_uv_executable }}"
+      - venv
+      - --python
+      - "{{ vllm_python_version }}"
+      - --seed
+      - "{{ vllm_venv_directory }}"
+    creates: "{{ vllm_venv_directory }}/bin/python"
+  notify: Reload and restart vLLM
+
+- name: Install vLLM package
+  when: >-
+    _vllm_installed_version != vllm_version or
+    _vllm_installed_accelerator != vllm_accelerator
+  become: true
+  become_user: "{{ vllm_user }}"
+  ansible.builtin.command:
+    argv: >-
+      {{ [vllm_uv_executable, 'pip', 'install', '--python',
+      vllm_venv_directory + '/bin/python', vllm_package + '==' + vllm_version]
+      + vllm_install_arguments }}
+  changed_when: true
+  notify: Reload and restart vLLM
+
+- name: Record installed vLLM accelerator profile
+  when: >-
+    _vllm_installed_version != vllm_version or
+    _vllm_installed_accelerator != vllm_accelerator
+  become: true
+  become_user: "{{ vllm_user }}"
+  ansible.builtin.copy:
+    content: "{{ vllm_accelerator }}\n"
+    dest: "{{ vllm_venv_directory }}/.githubixx-ai-accelerator"
+    owner: "{{ vllm_user }}"
+    group: "{{ vllm_group }}"
+    mode: "0640"
+  notify: Reload and restart vLLM
+
+- name: Install vLLM systemd service
+  ansible.builtin.template:
+    src: vllm.service.j2
+    dest: "/etc/systemd/system/{{ vllm_service_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload and restart vLLM
+
+- name: Flush vLLM handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start vLLM service
+  ansible.builtin.systemd_service:
+    name: "{{ vllm_service_name }}"
+    daemon_reload: true
+    enabled: "{{ vllm_service_enabled }}"
+    state: "{{ 'started' if vllm_service_started else 'stopped' }}"
+
+- name: Wait for vLLM loopback API
+  when:
+    - vllm_service_started
+    - vllm_api_url is match('^http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?$')
+  ansible.builtin.uri:
+    url: "{{ vllm_api_url }}/health"
+    status_code: 200
+  register: _vllm_api
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: _vllm_api.status == 200
