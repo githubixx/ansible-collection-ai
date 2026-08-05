@@ -1,0 +1,33 @@
+---
+namespace: "githubixx"
+name: "ai"
+version: "0.1.0"
+readme: "README.md"
+authors:
+  - "Robert Wimmer"
+description: "Roles for installing and operating AI-related software."
+license:
+  - "GPL-3.0-or-later"
+repository: "https://github.com/githubixx/ansible-collection-ai"
+tags:
+  - ai
+  - nvidia
+  - openshell
+  - ollama
+  - openwebui
+  - llm
+  - automation
+  - linux
+build_ignore:
+  - .ansible
+  - .cache
+  - .git
+  - .gitignore
+  - .envrc
+  - .github
+  - .molecule
+  - .venv
+  - __pycache__
+  - '*.pyc'
+  - '*.retry'
+  - '*.tar.gz'
