@@ -1,0 +1,134 @@
+---
+# ComfyUI release to install. Keep the application and its dependency profiles
+# compatible when updating this pinned upstream tag.
+comfyui_version: "v0.30.0"
+comfyui_repository: "https://github.com/Comfy-Org/ComfyUI.git"
+
+# This role currently supports x86_64 Linux hosts only.
+comfyui_arch: "{{ ansible_facts['architecture'] }}"
+
+comfyui_install_directory: "/opt/comfyui"
+comfyui_venv_directory: "{{ comfyui_install_directory }}/venv"
+comfyui_home: "/var/lib/comfyui"
+comfyui_models_directory: "{{ comfyui_home }}/models"
+comfyui_input_directory: "{{ comfyui_home }}/input"
+comfyui_output_directory: "{{ comfyui_home }}/output"
+comfyui_temp_directory: "{{ comfyui_home }}/temp"
+comfyui_user: "comfyui"
+comfyui_group: "comfyui"
+comfyui_python_executable: "python3"
+comfyui_pip_upgrade_packages:
+  - pip
+  - setuptools
+  - wheel
+
+# Select the PyTorch resource profile explicitly. This role does not detect or
+# install GPU/NPU drivers, firmware, CUDA, ROCm, or vendor toolkits.
+comfyui_accelerator: "cpu"
+comfyui_accelerator_profiles:
+  cpu:
+    packages:
+      - torch
+      - torchvision
+      - torchaudio
+    pip_args: ""
+  nvidia_cuda:
+    packages:
+      - torch
+      - torchvision
+      - torchaudio
+    pip_args: "--extra-index-url https://download.pytorch.org/whl/cu130"
+  amd_rocm:
+    packages:
+      - torch
+      - torchvision
+      - torchaudio
+    pip_args: "--index-url https://download.pytorch.org/whl/rocm7.2"
+  amd_rdna3:
+    packages:
+      - torch
+      - torchvision
+      - torchaudio
+    pip_args: "--pre --index-url https://rocm.nightlies.amd.com/v2/gfx110X-all/"
+  amd_rdna35:
+    packages:
+      - torch
+      - torchvision
+      - torchaudio
+    pip_args: "--pre --index-url https://rocm.nightlies.amd.com/v2/gfx1151/"
+  amd_rdna4:
+    packages:
+      - torch
+      - torchvision
+      - torchaudio
+    pip_args: "--pre --index-url https://rocm.nightlies.amd.com/v2/gfx120X-all/"
+  intel_xpu:
+    packages:
+      - torch
+      - torchvision
+      - torchaudio
+    pip_args: "--index-url https://download.pytorch.org/whl/xpu"
+  external:
+    packages: []
+    pip_args: ""
+
+# Override these as a pair for an accelerator's driver/toolkit-compatible
+# PyTorch build. The external profile requires a non-empty package list.
+comfyui_pytorch_packages: "{{ comfyui_accelerator_profiles[comfyui_accelerator]['packages'] }}"
+comfyui_pytorch_pip_args: "{{ comfyui_accelerator_profiles[comfyui_accelerator]['pip_args'] }}"
+
+# ComfyUI Manager v4 is integrated upstream. It uses manager_requirements.txt
+# and the --enable-manager launch argument rather than a custom_nodes checkout.
+comfyui_manager_enabled: true
+
+# External extensions are pinned Git repositories under custom_nodes. Every
+# item needs name, repo, and version; requirements_file is optional.
+comfyui_custom_nodes: []
+
+comfyui_packages_by_os:
+  Debian:
+    - git
+    - python3
+    - python3-venv
+  Archlinux:
+    - git
+    - python
+
+comfyui_service_name: "comfyui.service"
+comfyui_host: "127.0.0.1"
+comfyui_port: 8188
+comfyui_api_url: "http://{{ comfyui_host }}:{{ comfyui_port }}"
+comfyui_service_environment:
+  - "HOME={{ comfyui_home }}"
+  - "PATH={{ comfyui_venv_directory }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  - "XDG_CACHE_HOME={{ comfyui_home }}/.cache"
+  - "XDG_CONFIG_HOME={{ comfyui_home }}/.config"
+comfyui_service_environmentfile: ""
+comfyui_service_arguments:
+  - "--listen"
+  - "{{ comfyui_host }}"
+  - "--port"
+  - "{{ comfyui_port }}"
+  - "--models-directory"
+  - "{{ comfyui_models_directory }}"
+  - "--input-directory"
+  - "{{ comfyui_input_directory }}"
+  - "--output-directory"
+  - "{{ comfyui_output_directory }}"
+  - "--temp-directory"
+  - "{{ comfyui_temp_directory }}"
+  - "--user-directory"
+  - "{{ comfyui_home }}/user"
+comfyui_accelerator_service_arguments:
+  cpu:
+    - "--cpu"
+  nvidia_cuda: []
+  amd_rocm: []
+  amd_rdna3: []
+  amd_rdna35: []
+  amd_rdna4: []
+  intel_xpu: []
+  external: []
+comfyui_accelerator_arguments: "{{ comfyui_accelerator_service_arguments[comfyui_accelerator] }}"
+comfyui_service_enabled: true
+comfyui_service_started: true

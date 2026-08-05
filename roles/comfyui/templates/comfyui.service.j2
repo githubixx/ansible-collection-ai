@@ -1,0 +1,24 @@
+# Managed by githubixx.ai.comfyui. Local changes will be overwritten.
+[Unit]
+Description=ComfyUI Service
+Documentation=https://github.com/Comfy-Org/ComfyUI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User={{ comfyui_user }}
+Group={{ comfyui_group }}
+WorkingDirectory={{ comfyui_install_directory }}
+{% for environment in comfyui_service_environment %}
+Environment="{{ environment }}"
+{% endfor %}
+{% if comfyui_service_environmentfile | length > 0 %}
+EnvironmentFile="{{ comfyui_service_environmentfile }}"
+{% endif %}
+ExecStart={{ comfyui_venv_directory }}/bin/python main.py {% for argument in comfyui_service_arguments %}{{ argument }} {% endfor %}{% for argument in comfyui_accelerator_arguments %}{{ argument }} {% endfor %}{% if comfyui_manager_enabled %}--enable-manager{% endif %}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

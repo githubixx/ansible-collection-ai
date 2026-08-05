@@ -1,0 +1,12 @@
+---
+- name: Install ComfyUI
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Include ComfyUI
+      ansible.builtin.include_role:
+        name: comfyui
+      vars:
+        comfyui_accelerator: cpu
+        comfyui_manager_enabled: true

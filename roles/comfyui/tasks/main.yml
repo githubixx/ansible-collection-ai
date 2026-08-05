@@ -1,0 +1,202 @@
+---
+- name: Validate supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['system'] == 'Linux'
+      - >-
+        (ansible_facts['distribution'] == 'Ubuntu' and
+        ansible_facts['distribution_major_version'] in ['24', '26']) or
+        ansible_facts['distribution'] == 'Archlinux'
+      - ansible_facts['architecture'] == 'x86_64'
+      - comfyui_arch == 'x86_64'
+      - ansible_facts['service_mgr'] == 'systemd'
+      - ansible_facts['os_family'] in comfyui_packages_by_os
+    fail_msg: >-
+      githubixx.ai.comfyui supports x86_64 Ubuntu 24.04/26.04 and Arch Linux
+      with systemd.
+
+- name: Validate ComfyUI accelerator profile
+  ansible.builtin.assert:
+    that:
+      - comfyui_accelerator in comfyui_accelerator_profiles
+      - >-
+        comfyui_accelerator != 'external' or
+        comfyui_pytorch_packages | length > 0
+    fail_msg: >-
+      comfyui_accelerator must select a supported profile. The external profile
+      requires comfyui_pytorch_packages for the pre-provisioned vendor runtime.
+
+- name: Validate ComfyUI custom node definitions
+  ansible.builtin.assert:
+    that:
+      - item is mapping
+      - item.name is defined
+      - item.name is string
+      - item.name | length > 0
+      - item.repo is defined
+      - item.repo is string
+      - item.repo | length > 0
+      - item.version is defined
+      - item.version is string
+      - item.version | length > 0
+      - item.name is match('^[A-Za-z0-9][A-Za-z0-9._-]*$')
+    fail_msg: >-
+      Every comfyui_custom_nodes item needs a safe name plus non-empty repo and
+      version values.
+  loop: "{{ comfyui_custom_nodes }}"
+  loop_control:
+    label: "{{ item.name | default('invalid extension') }}"
+
+- name: Install ComfyUI prerequisites
+  ansible.builtin.package:
+    name: "{{ comfyui_packages_by_os[ansible_facts['os_family']] }}"
+    state: present
+
+- name: Create ComfyUI group
+  ansible.builtin.group:
+    name: "{{ comfyui_group }}"
+    system: true
+    state: present
+
+- name: Create ComfyUI service user
+  ansible.builtin.user:
+    name: "{{ comfyui_user }}"
+    group: "{{ comfyui_group }}"
+    home: "{{ comfyui_home }}"
+    create_home: true
+    shell: "/usr/sbin/nologin"
+    system: true
+    state: present
+
+- name: Ensure ComfyUI directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ comfyui_user }}"
+    group: "{{ comfyui_group }}"
+    mode: "0750"
+  loop:
+    - "{{ comfyui_install_directory }}"
+    - "{{ comfyui_models_directory }}"
+    - "{{ comfyui_input_directory }}"
+    - "{{ comfyui_output_directory }}"
+    - "{{ comfyui_temp_directory }}"
+    - "{{ comfyui_home }}/.cache"
+    - "{{ comfyui_home }}/.config"
+    - "{{ comfyui_home }}/user"
+
+- name: Install ComfyUI application
+  become: true
+  become_user: "{{ comfyui_user }}"
+  ansible.builtin.git:
+    repo: "{{ comfyui_repository }}"
+    dest: "{{ comfyui_install_directory }}"
+    version: "{{ comfyui_version }}"
+    update: true
+  notify: Reload and restart ComfyUI
+
+- name: Create ComfyUI virtual environment
+  become: true
+  become_user: "{{ comfyui_user }}"
+  ansible.builtin.command:
+    argv:
+      - "{{ comfyui_python_executable }}"
+      - -m
+      - venv
+      - "{{ comfyui_venv_directory }}"
+    creates: "{{ comfyui_venv_directory }}/bin/python"
+  notify: Reload and restart ComfyUI
+
+- name: Upgrade ComfyUI pip tooling
+  become: true
+  become_user: "{{ comfyui_user }}"
+  ansible.builtin.pip:
+    name: "{{ comfyui_pip_upgrade_packages }}"
+    state: present
+    virtualenv: "{{ comfyui_venv_directory }}"
+
+- name: Install PyTorch resources for selected ComfyUI accelerator
+  become: true
+  become_user: "{{ comfyui_user }}"
+  ansible.builtin.pip:
+    name: "{{ comfyui_pytorch_packages }}"
+    state: present
+    virtualenv: "{{ comfyui_venv_directory }}"
+    extra_args: "{{ comfyui_pytorch_pip_args }}"
+  notify: Reload and restart ComfyUI
+
+- name: Install ComfyUI core dependencies
+  become: true
+  become_user: "{{ comfyui_user }}"
+  ansible.builtin.pip:
+    requirements: "{{ comfyui_install_directory }}/requirements.txt"
+    virtualenv: "{{ comfyui_venv_directory }}"
+  notify: Reload and restart ComfyUI
+
+- name: Install ComfyUI Manager dependencies
+  when: comfyui_manager_enabled
+  become: true
+  become_user: "{{ comfyui_user }}"
+  ansible.builtin.pip:
+    requirements: "{{ comfyui_install_directory }}/manager_requirements.txt"
+    virtualenv: "{{ comfyui_venv_directory }}"
+  notify: Reload and restart ComfyUI
+
+- name: Install ComfyUI custom nodes
+  become: true
+  become_user: "{{ comfyui_user }}"
+  ansible.builtin.git:
+    repo: "{{ item.repo }}"
+    dest: "{{ comfyui_install_directory }}/custom_nodes/{{ item.name }}"
+    version: "{{ item.version }}"
+    update: true
+  loop: "{{ comfyui_custom_nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload and restart ComfyUI
+
+- name: Install ComfyUI custom node dependencies
+  when: item.requirements_file | default('') | length > 0
+  become: true
+  become_user: "{{ comfyui_user }}"
+  ansible.builtin.pip:
+    requirements: >-
+      {{ comfyui_install_directory }}/custom_nodes/{{ item.name }}/{{ item.requirements_file }}
+    virtualenv: "{{ comfyui_venv_directory }}"
+    extra_args: "{{ item.pip_args | default('') }}"
+  loop: "{{ comfyui_custom_nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload and restart ComfyUI
+
+- name: Install ComfyUI systemd service
+  ansible.builtin.template:
+    src: comfyui.service.j2
+    dest: "/etc/systemd/system/{{ comfyui_service_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload and restart ComfyUI
+
+- name: Flush ComfyUI handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start ComfyUI service
+  ansible.builtin.systemd_service:
+    name: "{{ comfyui_service_name }}"
+    daemon_reload: true
+    enabled: "{{ comfyui_service_enabled }}"
+    state: "{{ 'started' if comfyui_service_started else 'stopped' }}"
+
+- name: Wait for ComfyUI loopback API
+  when:
+    - comfyui_service_started
+    - comfyui_api_url is match('^http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?$')
+  ansible.builtin.uri:
+    url: "{{ comfyui_api_url }}/system_stats"
+    status_code: 200
+  register: _comfyui_api
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: _comfyui_api.status == 200

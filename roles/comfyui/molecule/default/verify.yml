@@ -1,0 +1,89 @@
+---
+- name: Verify ComfyUI installation
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    comfyui_test_version: "v0.30.0"
+  tasks:
+    - name: Query ComfyUI service user
+      ansible.builtin.getent:
+        database: passwd
+        key: comfyui
+
+    - name: Gather ComfyUI installation metadata
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/comfyui/.git
+        - /opt/comfyui/venv/bin/python
+        - /opt/comfyui/manager_requirements.txt
+        - /etc/systemd/system/comfyui.service
+        - /var/lib/comfyui
+      register: comfyui_test_files
+
+    - name: Assert ComfyUI installation files exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+      loop: "{{ comfyui_test_files.results }}"
+
+    - name: Query installed ComfyUI revision
+      become: true
+      become_user: comfyui
+      ansible.builtin.command:
+        argv:
+          - git
+          - -C
+          - /opt/comfyui
+          - describe
+          - --tags
+          - --exact-match
+      register: comfyui_test_revision
+      changed_when: false
+
+    - name: Assert expected ComfyUI revision is installed
+      ansible.builtin.assert:
+        that:
+          - comfyui_test_revision.stdout == comfyui_test_version
+
+    - name: Query ComfyUI virtual environment Python
+      become: true
+      become_user: comfyui
+      ansible.builtin.command:
+        argv:
+          - /opt/comfyui/venv/bin/python
+          - --version
+      changed_when: false
+
+    - name: Read ComfyUI systemd unit
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/comfyui.service
+      register: comfyui_test_unit
+
+    - name: Assert ComfyUI Manager is enabled in the service
+      ansible.builtin.assert:
+        that:
+          - "'--enable-manager' in (comfyui_test_unit.content | b64decode)"
+          - "'User=comfyui' in (comfyui_test_unit.content | b64decode)"
+
+    - name: Gather ComfyUI service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert ComfyUI service is running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['services']['comfyui.service']['state'] == 'running'
+          - ansible_facts['services']['comfyui.service']['status'] == 'enabled'
+
+    - name: Query ComfyUI system statistics
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8188/system_stats
+        status_code: 200
+      register: comfyui_test_system_stats
+      changed_when: false
+
+    - name: Assert ComfyUI system statistics contain device information
+      ansible.builtin.assert:
+        that:
+          - comfyui_test_system_stats.json.devices | default([]) | length > 0
