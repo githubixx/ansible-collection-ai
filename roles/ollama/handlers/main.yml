@@ -1,0 +1,7 @@
+---
+- name: Reload and restart Ollama
+  ansible.builtin.systemd_service:
+    name: "{{ ollama_service_name }}"
+    daemon_reload: true
+    enabled: "{{ ollama_service_enabled }}"
+    state: "{{ 'restarted' if ollama_service_started else 'stopped' }}"

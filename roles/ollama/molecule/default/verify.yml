@@ -1,0 +1,89 @@
+---
+- name: Verify Ollama installation
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    ollama_test_version: "0.32.5"
+    ollama_test_model: "gemma3:270m"
+  tasks:
+    - name: Gather Ollama binary metadata
+      ansible.builtin.stat:
+        path: /usr/local/bin/ollama
+      register: ollama_test_binary
+
+    - name: Assert Ollama binary is installed
+      ansible.builtin.assert:
+        that:
+          - ollama_test_binary.stat.exists
+          - ollama_test_binary.stat.executable
+          - ollama_test_binary.stat.pw_name == 'root'
+          - ollama_test_binary.stat.mode == '0755'
+
+    - name: Query Ollama CLI version
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/ollama
+          - --version
+      register: ollama_test_cli_version
+      changed_when: false
+
+    - name: Assert expected Ollama CLI version
+      ansible.builtin.assert:
+        that:
+          - "ollama_test_version in ollama_test_cli_version.stdout"
+
+    - name: Gather Ollama state directory metadata
+      ansible.builtin.stat:
+        path: /usr/share/ollama/.ollama
+      register: ollama_test_state_directory
+
+    - name: Assert Ollama state directory is owned by service user
+      ansible.builtin.assert:
+        that:
+          - ollama_test_state_directory.stat.exists
+          - ollama_test_state_directory.stat.pw_name == 'ollama'
+          - ollama_test_state_directory.stat.gr_name == 'ollama'
+
+    - name: Gather Ollama service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert Ollama service is running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['services']['ollama.service']['state'] == 'running'
+          - ansible_facts['services']['ollama.service']['status'] == 'enabled'
+
+    - name: Query Ollama API tags
+      ansible.builtin.uri:
+        url: http://127.0.0.1:11434/api/tags
+        status_code: 200
+      register: ollama_test_tags
+      changed_when: false
+
+    - name: Pull Ollama test model
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/ollama
+          - pull
+          - "{{ ollama_test_model }}"
+      register: ollama_test_pull
+      changed_when: "'pulling manifest' in ollama_test_pull.stdout"
+
+    - name: Generate Ollama test response
+      ansible.builtin.uri:
+        url: http://127.0.0.1:11434/api/generate
+        method: POST
+        body_format: json
+        body:
+          model: "{{ ollama_test_model }}"
+          prompt: "Reply with the word ready."
+          stream: false
+        status_code: 200
+      register: ollama_test_generate
+      changed_when: false
+
+    - name: Assert Ollama generated a response
+      ansible.builtin.assert:
+        that:
+          - ollama_test_generate.json.response | default('') | length > 0
