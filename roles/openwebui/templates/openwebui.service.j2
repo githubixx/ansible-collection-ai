@@ -1,0 +1,24 @@
+# Managed by githubixx.ai.openwebui. Local changes will be overwritten.
+[Unit]
+Description=Open WebUI Service
+Documentation=https://docs.openwebui.com/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User={{ openwebui_user }}
+Group={{ openwebui_group }}
+WorkingDirectory={{ openwebui_install_directory }}
+{% for environment in openwebui_service_environment %}
+{% if openwebui_database_backend != 'postgresql' or not environment.startswith('DATABASE_URL=') %}
+Environment="{{ environment }}"
+{% endif %}
+{% endfor %}
+EnvironmentFile="{{ openwebui_service_environmentfile }}"
+ExecStart={{ openwebui_venv_directory }}/bin/open-webui serve {% for argument in openwebui_service_arguments %}{{ argument }} {% endfor %}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

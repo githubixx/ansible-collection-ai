@@ -1,0 +1,96 @@
+---
+- name: Verify Open WebUI installation
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    openwebui_test_version: "0.11.0"
+  tasks:
+    - name: Query Open WebUI service user
+      ansible.builtin.getent:
+        database: passwd
+        key: openwebui
+
+    - name: Gather Open WebUI installation metadata
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/openwebui/venv/bin/python
+        - /opt/openwebui/venv/bin/open-webui
+        - /etc/systemd/system/openwebui.service
+        - /var/lib/openwebui/data
+      register: openwebui_test_files
+
+    - name: Assert Open WebUI installation files exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+      loop: "{{ openwebui_test_files.results }}"
+
+    - name: Query Open WebUI virtual environment Python
+      become: true
+      become_user: openwebui
+      ansible.builtin.command:
+        argv:
+          - /opt/openwebui/venv/bin/python
+          - --version
+      register: openwebui_test_python_version
+      changed_when: false
+
+    - name: Assert Python 3.11 is used
+      ansible.builtin.assert:
+        that:
+          - openwebui_test_python_version.stdout is match('^Python 3\\.11\\.')
+
+    - name: Query Open WebUI version
+      become: true
+      become_user: openwebui
+      ansible.builtin.command:
+        argv:
+          - /opt/openwebui/venv/bin/open-webui
+          - --version
+      register: openwebui_test_version_query
+      changed_when: false
+
+    - name: Assert expected Open WebUI version is installed
+      ansible.builtin.assert:
+        that:
+          - openwebui_test_version in openwebui_test_version_query.stdout
+
+    - name: Gather Open WebUI data directory metadata
+      ansible.builtin.stat:
+        path: /var/lib/openwebui/data
+      register: openwebui_test_data_directory
+
+    - name: Assert Open WebUI data directory is owned by service user
+      ansible.builtin.assert:
+        that:
+          - openwebui_test_data_directory.stat.pw_name == 'openwebui'
+          - openwebui_test_data_directory.stat.gr_name == 'openwebui'
+
+    - name: Read Open WebUI systemd unit
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/openwebui.service
+      register: openwebui_test_unit
+
+    - name: Assert Open WebUI service unit configuration
+      ansible.builtin.assert:
+        that:
+          - "'User=openwebui' in (openwebui_test_unit.content | b64decode)"
+          - "'EnvironmentFile=\"/etc/openwebui/openwebui.env\"' in (openwebui_test_unit.content | b64decode)"
+          - "'--host 127.0.0.1 --port 8080' in (openwebui_test_unit.content | b64decode)"
+
+    - name: Gather Open WebUI service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert Open WebUI service is running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['services']['openwebui.service']['state'] == 'running'
+          - ansible_facts['services']['openwebui.service']['status'] == 'enabled'
+
+    - name: Query Open WebUI loopback UI
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8080/
+        status_code: 200
+      changed_when: false
