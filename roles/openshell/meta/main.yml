@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  author: Robert Wimmer
+  description: Install the NVIDIA OpenShell CLI and local gateway from release archives.
+  license: GPL-3.0-or-later
+  min_ansible_version: "2.15"
+  role_name: openshell
+  namespace: githubixx
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+        - resolute
+    - name: ArchLinux
+  galaxy_tags:
+    - ai
+    - nvidia
+    - openshell
+    - cli
+    - gateway
+
+dependencies: []

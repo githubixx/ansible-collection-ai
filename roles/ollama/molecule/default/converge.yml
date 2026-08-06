@@ -1,0 +1,9 @@
+---
+- name: Install Ollama
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Include Ollama
+      ansible.builtin.include_role:
+        name: ollama

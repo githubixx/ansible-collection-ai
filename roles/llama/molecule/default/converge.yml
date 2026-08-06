@@ -1,0 +1,13 @@
+---
+- name: Install llama
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    llama_version: "b10107"
+    llama_artifact_url: "https://huggingface.co/buckets/ggml-org/install.sh/resolve/b10107/x86_64/linux/cpu/ylkkk/llama-app.zst"
+    llama_artifact_checksum: "sha256:b8fcb9e44a18c0fe7691cae51ecd9336b87ec398d04804a1f03beea50319977f"
+  tasks:
+    - name: Include llama
+      ansible.builtin.include_role:
+        name: llama

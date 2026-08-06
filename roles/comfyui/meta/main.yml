@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  author: Robert Wimmer
+  description: Install ComfyUI from a pinned upstream Git release.
+  license: GPL-3.0-or-later
+  min_ansible_version: "2.15"
+  role_name: comfyui
+  namespace: githubixx
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+        - resolute
+    - name: ArchLinux
+  galaxy_tags:
+    - ai
+    - comfyui
+    - diffusion
+    - inference
+
+dependencies: []

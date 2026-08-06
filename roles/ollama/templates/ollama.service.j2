@@ -1,0 +1,23 @@
+# Managed by githubixx.ai.ollama. Local changes will be overwritten.
+[Unit]
+Description=Ollama Service
+Documentation=https://docs.ollama.com/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User={{ ollama_user }}
+Group={{ ollama_group }}
+{% for environment in ollama_service_environment %}
+Environment="{{ environment }}"
+{% endfor %}
+{% if ollama_service_environmentfile | length > 0 %}
+EnvironmentFile="{{ ollama_service_environmentfile }}"
+{% endif %}
+ExecStart={{ ollama_bin_directory }}/ollama serve
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

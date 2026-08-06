@@ -1,0 +1,46 @@
+# This workflow requires a GALAXY_API_KEY secret in the GitHub repository or
+# organization. Create a <collection-version> tag to publish that version.
+---
+name: Release
+
+"on":
+  push:
+    tags:
+      - '[0-9]*'
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish collection to Ansible Galaxy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible Core
+        run: python -m pip install ansible-core
+
+      - name: Verify release tag matches collection version
+        run: |
+          collection_version=$(sed -n 's/^version: //p' galaxy.yml)
+
+          test -n "$collection_version"
+          test "$GITHUB_REF_NAME" = "$collection_version"
+
+      - name: Build collection
+        run: ansible-galaxy collection build --force
+
+      - name: Publish collection to Ansible Galaxy
+        env:
+          GALAXY_API_KEY: ${{ secrets.GALAXY_API_KEY }}
+        run: |
+          collection_version=$(sed -n 's/^version: //p' galaxy.yml)
+          ansible-galaxy collection publish "githubixx-ai-${collection_version}.tar.gz" \
+            --api-key "$GALAXY_API_KEY"

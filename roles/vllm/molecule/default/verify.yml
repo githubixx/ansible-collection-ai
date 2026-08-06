@@ -1,0 +1,106 @@
+---
+- name: Verify vLLM installation
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    vllm_test_version: "0.26.0"
+    vllm_test_accelerator: "{{ 'amd_rocm' if 'amd_rocm' in group_names else 'nvidia_cuda' }}"
+  tasks:
+    - name: Query vLLM service user
+      ansible.builtin.getent:
+        database: passwd
+        key: vllm
+
+    - name: Gather vLLM installation metadata
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/vllm/venv/bin/python
+        - /opt/vllm/venv/bin/vllm
+        - /opt/vllm/venv/.githubixx-ai-accelerator
+        - /etc/systemd/system/vllm.service
+        - /var/lib/vllm/cache
+        - /var/lib/vllm/models
+      register: vllm_test_files
+
+    - name: Assert vLLM installation files exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+      loop: "{{ vllm_test_files.results }}"
+
+    - name: Query vLLM virtual environment Python
+      become: true
+      become_user: vllm
+      ansible.builtin.command:
+        argv:
+          - /opt/vllm/venv/bin/python
+          - --version
+      register: vllm_test_python_version
+      changed_when: false
+
+    - name: Assert Python 3.12 is used
+      ansible.builtin.assert:
+        that:
+          - vllm_test_python_version.stdout is match('^Python 3\\.12\\.')
+
+    - name: Query vLLM version
+      become: true
+      become_user: vllm
+      ansible.builtin.command:
+        argv:
+          - /opt/vllm/venv/bin/vllm
+          - --version
+      register: vllm_test_version_query
+      changed_when: false
+
+    - name: Assert expected vLLM version is installed
+      ansible.builtin.assert:
+        that:
+          - vllm_test_version in vllm_test_version_query.stdout
+
+    - name: Read vLLM accelerator marker
+      ansible.builtin.slurp:
+        src: /opt/vllm/venv/.githubixx-ai-accelerator
+      register: vllm_test_accelerator_marker
+
+    - name: Assert expected vLLM accelerator profile is installed
+      ansible.builtin.assert:
+        that:
+          - (vllm_test_accelerator_marker.content | b64decode | trim) == vllm_test_accelerator
+
+    - name: Gather vLLM cache directory metadata
+      ansible.builtin.stat:
+        path: /var/lib/vllm/cache
+      register: vllm_test_cache_directory
+
+    - name: Assert vLLM cache directory is owned by service user
+      ansible.builtin.assert:
+        that:
+          - vllm_test_cache_directory.stat.pw_name == 'vllm'
+          - vllm_test_cache_directory.stat.gr_name == 'vllm'
+
+    - name: Read vLLM systemd unit
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/vllm.service
+      register: vllm_test_unit
+
+    - name: Assert vLLM systemd unit configuration
+      ansible.builtin.assert:
+        that:
+          - "'User=vllm' in (vllm_test_unit.content | b64decode)"
+          - >-
+            'ExecStart=/opt/vllm/venv/bin/vllm serve
+            Qwen/Qwen2.5-1.5B-Instruct --host 127.0.0.1 --port 8000'
+            in (vllm_test_unit.content | b64decode)
+          - "'EnvironmentFile=' not in (vllm_test_unit.content | b64decode)"
+
+    - name: Gather vLLM service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert vLLM service is disabled and stopped
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['services']['vllm.service']['state'] == 'stopped'
+          - ansible_facts['services']['vllm.service']['status'] == 'disabled'

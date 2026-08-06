@@ -1,0 +1,24 @@
+# Managed by githubixx.ai.llama. Local changes will be overwritten.
+[Unit]
+Description=llama.cpp Service ({{ item.name }})
+Documentation=https://llama.app/ https://github.com/ggml-org/llama.cpp/tree/master/tools/server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User={{ llama_user }}
+Group={{ llama_group }}
+WorkingDirectory={{ llama_home }}
+{% for environment in item.environment %}
+Environment="{{ environment }}"
+{% endfor %}
+{% if item.environmentfile | length > 0 %}
+EnvironmentFile="{{ item.environmentfile }}"
+{% endif %}
+ExecStart={{ llama_binary }} serve{% for argument in item.arguments %} {{ argument }}{% endfor %}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,25 @@
+---
+- name: Install Open WebUI
+  hosts: all
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Create Open WebUI environment directory
+      ansible.builtin.file:
+        path: /etc/openwebui
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Create test Open WebUI environment file
+      ansible.builtin.copy:
+        content: "WEBUI_SECRET_KEY=molecule-test-secret-key\n"
+        dest: /etc/openwebui/openwebui.env
+        owner: root
+        group: root
+        mode: "0640"
+  tasks:
+    - name: Include Open WebUI
+      ansible.builtin.include_role:
+        name: openwebui

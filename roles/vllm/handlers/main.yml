@@ -1,0 +1,7 @@
+---
+- name: Reload and restart vLLM
+  ansible.builtin.systemd_service:
+    name: "{{ vllm_service_name }}"
+    daemon_reload: true
+    enabled: "{{ vllm_service_enabled }}"
+    state: "{{ 'restarted' if vllm_service_started else 'stopped' }}"

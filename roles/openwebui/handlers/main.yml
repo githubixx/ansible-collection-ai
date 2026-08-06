@@ -1,0 +1,7 @@
+---
+- name: Reload and restart Open WebUI
+  ansible.builtin.systemd_service:
+    name: "{{ openwebui_service_name }}"
+    daemon_reload: true
+    enabled: "{{ openwebui_service_enabled }}"
+    state: "{{ 'restarted' if openwebui_service_started else 'stopped' }}"

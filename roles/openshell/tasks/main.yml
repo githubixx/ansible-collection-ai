@@ -1,0 +1,284 @@
+---
+- name: Validate supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['system'] == 'Linux'
+      - >-
+        (ansible_facts['distribution'] == 'Ubuntu' and
+        ansible_facts['distribution_major_version'] in ['24', '26']) or
+        ansible_facts['distribution'] == 'Archlinux'
+      - ansible_facts['architecture'] == 'x86_64'
+      - openshell_arch == 'x86_64'
+      - openshell_compute_driver == 'docker'
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: >-
+      githubixx.ai.openshell supports x86_64 Ubuntu 24.04/26.04 and Arch Linux
+      with systemd and the externally managed Docker compute driver.
+
+- name: Query target OpenShell user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ openshell_user }}"
+
+- name: Define target OpenShell user facts
+  ansible.builtin.set_fact:
+    _openshell_user_uid: "{{ ansible_facts['getent_passwd'][openshell_user][1] }}"
+    _openshell_user_group: "{{ ansible_facts['getent_passwd'][openshell_user][2] }}"
+    _openshell_user_home: "{{ ansible_facts['getent_passwd'][openshell_user][4] }}"
+
+- name: Validate target OpenShell user
+  ansible.builtin.assert:
+    that:
+      - _openshell_user_home | length > 0
+      - _openshell_user_uid | int > 0
+    fail_msg: >-
+      openshell_user must identify a non-root local user with a valid home directory.
+
+- name: Query GNU libc version for OpenShell gateway
+  ansible.builtin.command:
+    argv:
+      - getconf
+      - GNU_LIBC_VERSION
+  register: _openshell_glibc_query
+  changed_when: false
+
+- name: Define GNU libc version
+  ansible.builtin.set_fact:
+    _openshell_glibc_version: >-
+      {{ _openshell_glibc_query.stdout | regex_replace('^glibc\s+', '') }}
+
+- name: Validate GNU libc version for OpenShell gateway
+  ansible.builtin.assert:
+    that:
+      - _openshell_glibc_version is version('2.28', '>=')
+    fail_msg: >-
+      OpenShell gateway requires GNU libc 2.28 or newer; detected
+      {{ _openshell_glibc_query.stdout | default('unknown') }}.
+
+- name: Validate Docker availability for the OpenShell user
+  become: true
+  become_user: "{{ openshell_user }}"
+  ansible.builtin.command:
+    argv:
+      - docker
+      - info
+  changed_when: false
+
+- name: Ensure OpenShell binary directory exists
+  ansible.builtin.file:
+    path: "{{ openshell_bin_directory }}"
+    state: directory
+    owner: "{{ openshell_owner }}"
+    group: "{{ openshell_group }}"
+    mode: "0755"
+
+- name: Ensure OpenShell download directory exists
+  ansible.builtin.file:
+    path: "{{ openshell_download_directory }}"
+    state: directory
+    owner: "{{ openshell_owner }}"
+    group: "{{ openshell_group }}"
+    mode: "0700"
+
+- name: Ensure OpenShell extraction directory exists
+  ansible.builtin.file:
+    path: "{{ openshell_download_directory }}/{{ openshell_version }}"
+    state: directory
+    owner: "{{ openshell_owner }}"
+    group: "{{ openshell_group }}"
+    mode: "0700"
+
+- name: Download OpenShell CLI archive
+  ansible.builtin.get_url:
+    url: "{{ openshell_cli_url }}"
+    dest: "{{ openshell_download_directory }}/{{ openshell_cli_archive }}"
+    checksum: "{{ openshell_cli_checksum }}"
+    owner: "{{ openshell_owner }}"
+    group: "{{ openshell_group }}"
+    mode: "0600"
+
+- name: Download OpenShell gateway archive
+  ansible.builtin.get_url:
+    url: "{{ openshell_gateway_url }}"
+    dest: "{{ openshell_download_directory }}/{{ openshell_gateway_archive }}"
+    checksum: "{{ openshell_gateway_checksum }}"
+    owner: "{{ openshell_owner }}"
+    group: "{{ openshell_group }}"
+    mode: "0600"
+
+- name: Unarchive OpenShell CLI
+  ansible.builtin.unarchive:
+    src: "{{ openshell_download_directory }}/{{ openshell_cli_archive }}"
+    dest: "{{ openshell_download_directory }}/{{ openshell_version }}"
+    remote_src: true
+    creates: "{{ openshell_download_directory }}/{{ openshell_version }}/openshell"
+
+- name: Unarchive OpenShell gateway
+  ansible.builtin.unarchive:
+    src: "{{ openshell_download_directory }}/{{ openshell_gateway_archive }}"
+    dest: "{{ openshell_download_directory }}/{{ openshell_version }}"
+    remote_src: true
+    creates: "{{ openshell_download_directory }}/{{ openshell_version }}/openshell-gateway"
+
+- name: Install OpenShell CLI binary
+  ansible.builtin.copy:
+    src: "{{ openshell_download_directory }}/{{ openshell_version }}/openshell"
+    dest: "{{ openshell_bin_directory }}/openshell"
+    remote_src: true
+    owner: "{{ openshell_owner }}"
+    group: "{{ openshell_group }}"
+    mode: "{{ openshell_binary_mode }}"
+  notify: Reload and restart OpenShell gateway
+
+- name: Install OpenShell gateway binary
+  ansible.builtin.copy:
+    src: "{{ openshell_download_directory }}/{{ openshell_version }}/openshell-gateway"
+    dest: "{{ openshell_bin_directory }}/openshell-gateway"
+    remote_src: true
+    owner: "{{ openshell_owner }}"
+    group: "{{ openshell_group }}"
+    mode: "{{ openshell_binary_mode }}"
+  notify: Reload and restart OpenShell gateway
+
+- name: Ensure OpenShell configuration directory exists
+  ansible.builtin.file:
+    path: "{{ _openshell_user_home }}/{{ openshell_gateway_config_directory_name }}"
+    state: directory
+    owner: "{{ openshell_user }}"
+    group: "{{ _openshell_user_group }}"
+    mode: "0700"
+
+- name: Ensure OpenShell state directory exists
+  ansible.builtin.file:
+    path: "{{ _openshell_user_home }}/{{ openshell_gateway_state_directory_name }}"
+    state: directory
+    owner: "{{ openshell_user }}"
+    group: "{{ _openshell_user_group }}"
+    mode: "{{ openshell_gateway_state_mode }}"
+
+- name: Create OpenShell gateway configuration when absent
+  ansible.builtin.template:
+    src: gateway.toml.j2
+    dest: "{{ _openshell_user_home }}/{{ openshell_gateway_config_directory_name }}/gateway.toml"
+    owner: "{{ openshell_user }}"
+    group: "{{ _openshell_user_group }}"
+    mode: "{{ openshell_gateway_config_mode }}"
+    force: false
+  notify: Reload and restart OpenShell gateway
+
+- name: Ensure OpenShell systemd user unit directory exists
+  ansible.builtin.file:
+    path: "{{ _openshell_user_home }}/.config/systemd/user"
+    state: directory
+    owner: "{{ openshell_user }}"
+    group: "{{ _openshell_user_group }}"
+    mode: "0700"
+
+- name: Install OpenShell systemd user unit
+  ansible.builtin.template:
+    src: openshell-gateway.service.j2
+    dest: "{{ _openshell_user_home }}/.config/systemd/user/{{ openshell_gateway_service_name }}"
+    owner: "{{ openshell_user }}"
+    group: "{{ _openshell_user_group }}"
+    mode: "0644"
+  notify: Reload and restart OpenShell gateway
+
+- name: Enable lingering for the OpenShell user
+  ansible.builtin.command:
+    argv:
+      - loginctl
+      - enable-linger
+      - "{{ openshell_user }}"
+  changed_when: false
+
+- name: Query Docker group
+  ansible.builtin.getent:
+    database: group
+    key: docker
+
+- name: Query OpenShell user manager process ID
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - show
+      - "user@{{ _openshell_user_uid }}.service"
+      - --property=MainPID
+      - --value
+  register: _openshell_user_manager_pid
+  changed_when: false
+
+- name: Query OpenShell user manager groups
+  when:
+    - _openshell_user_manager_pid.stdout | int > 0
+  ansible.builtin.command:
+    argv:
+      - grep
+      - '^Groups:'
+      - "/proc/{{ _openshell_user_manager_pid.stdout }}/status"
+  register: _openshell_user_manager_groups
+  changed_when: false
+
+- name: Restart stale OpenShell user manager
+  when:
+    - _openshell_user_manager_pid.stdout | int > 0
+    - >-
+      ansible_facts['getent_group']['docker'][1] | string not in
+      _openshell_user_manager_groups.stdout.split()
+  ansible.builtin.systemd_service:
+    name: "user@{{ _openshell_user_uid }}.service"
+    state: restarted
+
+- name: Flush OpenShell gateway handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start OpenShell gateway
+  become: true
+  become_user: "{{ openshell_user }}"
+  environment:
+    HOME: "{{ _openshell_user_home }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ _openshell_user_uid }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ _openshell_user_uid }}/bus"
+  ansible.builtin.systemd_service:
+    name: "{{ openshell_gateway_service_name }}"
+    enabled: "{{ openshell_gateway_service_enabled }}"
+    state: "{{ 'started' if openshell_gateway_service_started else 'stopped' }}"
+    scope: user
+
+- name: Configure and verify local OpenShell gateway
+  when: openshell_gateway_service_started
+  become: true
+  become_user: "{{ openshell_user }}"
+  environment:
+    HOME: "{{ _openshell_user_home }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ _openshell_user_uid }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ _openshell_user_uid }}/bus"
+  block:
+    - name: Register local OpenShell gateway
+      ansible.builtin.command:
+        argv:
+          - "{{ openshell_bin_directory }}/openshell"
+          - gateway
+          - add
+          - "https://127.0.0.1:17670"
+          - --local
+          - --name
+          - "{{ openshell_gateway_name }}"
+      register: _openshell_gateway_registration
+      changed_when: >-
+        'already exists' not in
+        ((_openshell_gateway_registration.stdout ~ _openshell_gateway_registration.stderr) | lower)
+      failed_when: >-
+        _openshell_gateway_registration.rc != 0 and
+        'already exists' not in
+        ((_openshell_gateway_registration.stdout ~ _openshell_gateway_registration.stderr) | lower)
+
+    - name: Verify OpenShell gateway status
+      ansible.builtin.command:
+        argv:
+          - "{{ openshell_bin_directory }}/openshell"
+          - status
+      register: _openshell_status
+      changed_when: false
+      retries: 6
+      delay: 5
+      until: _openshell_status.rc == 0 and 'Version:' in _openshell_status.stdout

@@ -1,0 +1,60 @@
+---
+- name: Verify llama installation
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    llama_test_version: "b10107"
+  tasks:
+    - name: Gather llama binary metadata
+      ansible.builtin.stat:
+        path: /usr/local/bin/llama
+      register: llama_test_binary
+
+    - name: Assert llama binary is installed
+      ansible.builtin.assert:
+        that:
+          - llama_test_binary.stat.exists
+          - llama_test_binary.stat.executable
+          - llama_test_binary.stat.pw_name == 'root'
+          - llama_test_binary.stat.mode == '0755'
+
+    - name: Query llama CLI version
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/llama
+          - version
+      register: llama_test_cli_version
+      changed_when: false
+
+    - name: Assert expected llama CLI version
+      ansible.builtin.assert:
+        that:
+          - llama_test_version in llama_test_cli_version.stdout
+
+    - name: Gather llama cache metadata
+      ansible.builtin.stat:
+        path: /var/lib/llama/.cache/llama.cpp
+      register: llama_test_cache
+
+    - name: Assert llama cache is owned by service user
+      ansible.builtin.assert:
+        that:
+          - llama_test_cache.stat.exists
+          - llama_test_cache.stat.pw_name == 'llama'
+          - llama_test_cache.stat.gr_name == 'llama'
+
+    - name: Gather llama service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert llama service is running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['services']['llama.service']['state'] == 'running'
+          - ansible_facts['services']['llama.service']['status'] == 'enabled'
+
+    - name: Query llama router models API
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8080/models
+        status_code: 200
+      changed_when: false

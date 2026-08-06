@@ -1,0 +1,149 @@
+---
+- name: Validate supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['system'] == 'Linux'
+      - >-
+        (ansible_facts['distribution'] == 'Ubuntu' and
+        ansible_facts['distribution_major_version'] in ['24', '26']) or
+        ansible_facts['distribution'] == 'Archlinux'
+      - ansible_facts['architecture'] == 'x86_64'
+      - ollama_arch == 'x86_64'
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: >-
+      githubixx.ai.ollama supports x86_64 Ubuntu 24.04/26.04 and Arch Linux
+      with systemd.
+
+- name: Install Ollama archive extraction prerequisite
+  ansible.builtin.package:
+    name: zstd
+    state: present
+
+- name: Create Ollama group
+  ansible.builtin.group:
+    name: "{{ ollama_group }}"
+    system: true
+    state: present
+
+- name: Create Ollama service user
+  ansible.builtin.user:
+    name: "{{ ollama_user }}"
+    group: "{{ ollama_group }}"
+    home: "{{ ollama_home }}"
+    create_home: true
+    shell: "/usr/sbin/nologin"
+    system: true
+    state: present
+
+- name: Ensure Ollama state directory exists
+  ansible.builtin.file:
+    path: "{{ ollama_state_directory }}"
+    state: directory
+    owner: "{{ ollama_user }}"
+    group: "{{ ollama_group }}"
+    mode: "0750"
+
+- name: Query existing Ollama version
+  ansible.builtin.command:
+    argv:
+      - "{{ ollama_bin_directory }}/ollama"
+      - --version
+  register: _ollama_installed_version_query
+  changed_when: false
+  failed_when: false
+
+- name: Define existing Ollama version
+  ansible.builtin.set_fact:
+    _ollama_installed_version: >-
+      {{ (_ollama_installed_version_query.stdout | regex_findall('[0-9]+\.[0-9]+\.[0-9]+') | first) | default('') }}
+
+- name: Ensure Ollama download directory exists
+  when: _ollama_installed_version != ollama_version
+  ansible.builtin.file:
+    path: "{{ ollama_download_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Download Ollama archive
+  when: _ollama_installed_version != ollama_version
+  ansible.builtin.get_url:
+    url: "{{ ollama_archive_url }}"
+    dest: "{{ ollama_download_directory }}/{{ ollama_archive }}"
+    checksum: "{{ ollama_archive_checksum }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Remove previous Ollama runtime libraries
+  when:
+    - _ollama_installed_version | length > 0
+    - _ollama_installed_version != ollama_version
+  ansible.builtin.file:
+    path: "{{ ollama_library_directory }}"
+    state: absent
+
+- name: Ensure Ollama installation directory exists
+  ansible.builtin.file:
+    path: "{{ ollama_install_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Extract Ollama into the installation directory
+  when: _ollama_installed_version != ollama_version
+  ansible.builtin.unarchive:
+    src: "{{ ollama_download_directory }}/{{ ollama_archive }}"
+    dest: "{{ ollama_install_directory }}"
+    remote_src: true
+    extra_opts:
+      - "--use-compress-program=unzstd"
+  notify: Reload and restart Ollama
+
+- name: Set Ollama binary permissions
+  ansible.builtin.file:
+    path: "{{ ollama_bin_directory }}/ollama"
+    state: file
+    owner: root
+    group: root
+    mode: "{{ ollama_binary_mode }}"
+
+- name: Remove Ollama download archive
+  when: _ollama_installed_version != ollama_version
+  ansible.builtin.file:
+    path: "{{ ollama_download_directory }}"
+    state: absent
+
+- name: Install Ollama systemd service
+  ansible.builtin.template:
+    src: ollama.service.j2
+    dest: "/etc/systemd/system/{{ ollama_service_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload and restart Ollama
+
+- name: Flush Ollama handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start Ollama service
+  ansible.builtin.systemd_service:
+    name: "{{ ollama_service_name }}"
+    daemon_reload: true
+    enabled: "{{ ollama_service_enabled }}"
+    state: "{{ 'started' if ollama_service_started else 'stopped' }}"
+
+- name: Wait for Ollama loopback API
+  when:
+    - ollama_service_started
+    - ollama_api_url is match('^http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?$')
+  ansible.builtin.uri:
+    url: "{{ ollama_api_url }}/api/tags"
+    status_code: 200
+  register: _ollama_api
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: _ollama_api.status == 200

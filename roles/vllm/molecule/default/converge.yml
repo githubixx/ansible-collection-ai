@@ -1,0 +1,13 @@
+---
+- name: Install vLLM
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Include vLLM
+      ansible.builtin.include_role:
+        name: vllm
+      vars:
+        vllm_accelerator: "{{ 'amd_rocm' if 'amd_rocm' in group_names else 'nvidia_cuda' }}"
+        vllm_service_enabled: false
+        vllm_service_started: false

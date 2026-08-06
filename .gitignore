@@ -1,0 +1,10 @@
+.ansible/
+.ansible-lint
+.envrc
+.cache/
+.molecule/
+.venv/
+__pycache__/
+*.pyc
+*.retry
+*.tar.gz

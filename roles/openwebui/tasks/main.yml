@@ -1,0 +1,187 @@
+---
+- name: Validate supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['system'] == 'Linux'
+      - >-
+        (ansible_facts['distribution'] == 'Ubuntu' and
+        ansible_facts['distribution_major_version'] in ['24', '26']) or
+        ansible_facts['distribution'] == 'Archlinux'
+      - ansible_facts['architecture'] == 'x86_64'
+      - openwebui_arch == 'x86_64'
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: >-
+      githubixx.ai.openwebui supports x86_64 Ubuntu 24.04/26.04 and Arch Linux
+      with systemd.
+
+- name: Validate Open WebUI configuration
+  ansible.builtin.assert:
+    that:
+      - openwebui_uv_executable | length > 0
+      - openwebui_python_version == '3.11'
+      - openwebui_database_backend in ['sqlite', 'postgresql']
+      - openwebui_host | length > 0
+      - openwebui_port | int > 0
+      - openwebui_port | int < 65536
+      - openwebui_service_environmentfile | length > 0
+    fail_msg: >-
+      Open WebUI requires uv, Python 3.11, a supported database backend, and a
+      valid systemd environment file path. PostgreSQL requires a database URL.
+
+- name: Query uv executable
+  ansible.builtin.command:
+    argv:
+      - "{{ openwebui_uv_executable }}"
+      - --version
+  changed_when: false
+
+- name: Check Open WebUI environment file
+  ansible.builtin.stat:
+    path: "{{ openwebui_service_environmentfile }}"
+  register: _openwebui_environmentfile
+
+- name: Require Open WebUI environment file
+  ansible.builtin.assert:
+    that:
+      - _openwebui_environmentfile.stat.exists
+      - _openwebui_environmentfile.stat.isreg
+      - _openwebui_environmentfile.stat.readable
+    fail_msg: >-
+      Create {{ openwebui_service_environmentfile }} with a persistent,
+      non-empty WEBUI_SECRET_KEY before running githubixx.ai.openwebui.
+
+- name: Read Open WebUI environment file
+  no_log: true
+  ansible.builtin.slurp:
+    src: "{{ openwebui_service_environmentfile }}"
+  register: _openwebui_environmentfile_content
+
+- name: Require Open WebUI secret key
+  no_log: true
+  ansible.builtin.assert:
+    that:
+      - >-
+        (_openwebui_environmentfile_content.content | b64decode)
+        is regex('(?m)^WEBUI_SECRET_KEY=[^\\r\\n]+$')
+    fail_msg: >-
+      {{ openwebui_service_environmentfile }} must define a non-empty
+      WEBUI_SECRET_KEY value.
+
+- name: Require PostgreSQL database URL
+  when: openwebui_database_backend == 'postgresql'
+  no_log: true
+  ansible.builtin.assert:
+    that:
+      - >-
+        (_openwebui_environmentfile_content.content | b64decode)
+        is regex('(?m)^DATABASE_URL=[^\\r\\n]+$')
+    fail_msg: >-
+      {{ openwebui_service_environmentfile }} must define a non-empty
+      DATABASE_URL value when openwebui_database_backend is postgresql.
+
+- name: Create Open WebUI group
+  ansible.builtin.group:
+    name: "{{ openwebui_group }}"
+    system: true
+    state: present
+
+- name: Create Open WebUI service user
+  ansible.builtin.user:
+    name: "{{ openwebui_user }}"
+    group: "{{ openwebui_group }}"
+    home: "{{ openwebui_home }}"
+    create_home: true
+    shell: "/usr/sbin/nologin"
+    system: true
+    state: present
+
+- name: Ensure Open WebUI directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ openwebui_user }}"
+    group: "{{ openwebui_group }}"
+    mode: "0750"
+  loop:
+    - "{{ openwebui_install_directory }}"
+    - "{{ openwebui_data_directory }}"
+    - "{{ openwebui_home }}/.cache"
+    - "{{ openwebui_home }}/.config"
+
+- name: Query installed Open WebUI version
+  become: true
+  become_user: "{{ openwebui_user }}"
+  ansible.builtin.command:
+    argv:
+      - "{{ openwebui_venv_directory }}/bin/open-webui"
+      - --version
+  register: _openwebui_installed_version_query
+  changed_when: false
+  failed_when: false
+
+- name: Define installed Open WebUI version
+  ansible.builtin.set_fact:
+    _openwebui_installed_version: >-
+      {{ (_openwebui_installed_version_query.stdout |
+      regex_findall('[0-9]+\\.[0-9]+\\.[0-9]+') | first) | default('') }}
+
+- name: Create Open WebUI virtual environment
+  when: _openwebui_installed_version != openwebui_version
+  become: true
+  become_user: "{{ openwebui_user }}"
+  ansible.builtin.command:
+    argv:
+      - "{{ openwebui_uv_executable }}"
+      - venv
+      - --python
+      - "{{ openwebui_python_version }}"
+      - "{{ openwebui_venv_directory }}"
+    creates: "{{ openwebui_venv_directory }}/bin/python"
+  notify: Reload and restart Open WebUI
+
+- name: Install Open WebUI package
+  when: _openwebui_installed_version != openwebui_version
+  become: true
+  become_user: "{{ openwebui_user }}"
+  ansible.builtin.command:
+    argv:
+      - "{{ openwebui_uv_executable }}"
+      - pip
+      - install
+      - --python
+      - "{{ openwebui_venv_directory }}/bin/python"
+      - "{{ openwebui_package }}=={{ openwebui_version }}"
+  changed_when: true
+  notify: Reload and restart Open WebUI
+
+- name: Install Open WebUI systemd service
+  ansible.builtin.template:
+    src: openwebui.service.j2
+    dest: "/etc/systemd/system/{{ openwebui_service_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload and restart Open WebUI
+
+- name: Flush Open WebUI handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start Open WebUI service
+  ansible.builtin.systemd_service:
+    name: "{{ openwebui_service_name }}"
+    daemon_reload: true
+    enabled: "{{ openwebui_service_enabled }}"
+    state: "{{ 'started' if openwebui_service_started else 'stopped' }}"
+
+- name: Wait for Open WebUI loopback API
+  when:
+    - openwebui_service_started
+    - openwebui_api_url is match('^http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?$')
+  ansible.builtin.uri:
+    url: "{{ openwebui_api_url }}/"
+    status_code: 200
+  register: _openwebui_api
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: _openwebui_api.status == 200

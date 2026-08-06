@@ -1,0 +1,55 @@
+---
+# vLLM package release to install. Keep the package name and version
+# synchronized when updating this pinned upstream release.
+vllm_version: "0.26.0"
+vllm_package: "vllm"
+
+# This role currently supports x86_64 Linux hosts only.
+vllm_arch: "{{ ansible_facts['architecture'] }}"
+
+# uv must be installed by the host administrator. It can download a managed
+# Python 3.12 interpreter when creating this virtual environment.
+vllm_uv_executable: "uv"
+vllm_python_version: "3.12"
+
+vllm_install_directory: "/opt/vllm"
+vllm_venv_directory: "{{ vllm_install_directory }}/venv"
+vllm_home: "/var/lib/vllm"
+vllm_cache_directory: "{{ vllm_home }}/cache"
+vllm_models_directory: "{{ vllm_home }}/models"
+vllm_user: "vllm"
+vllm_group: "vllm"
+
+# Select the vendor runtime explicitly. This role does not detect or install
+# GPU drivers, CUDA, ROCm, firmware, or vendor toolkits.
+vllm_accelerator: "nvidia_cuda"
+vllm_accelerator_profiles:
+  nvidia_cuda:
+    install_arguments:
+      - "--torch-backend=auto"
+  amd_rocm:
+    install_arguments:
+      - "--extra-index-url"
+      - "https://wheels.vllm.ai/rocm/"
+vllm_install_arguments: "{{ vllm_accelerator_profiles[vllm_accelerator]['install_arguments'] }}"
+
+vllm_service_name: "vllm.service"
+vllm_model: "Qwen/Qwen2.5-1.5B-Instruct"
+vllm_host: "127.0.0.1"
+vllm_port: 8000
+vllm_api_url: "http://{{ vllm_host }}:{{ vllm_port }}"
+vllm_service_environment:
+  - "HOME={{ vllm_home }}"
+  - "PATH={{ vllm_venv_directory }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  - "XDG_CACHE_HOME={{ vllm_cache_directory }}"
+  - "XDG_CONFIG_HOME={{ vllm_home }}/.config"
+  - "HF_HOME={{ vllm_cache_directory }}/huggingface"
+  - "VLLM_CACHE_ROOT={{ vllm_cache_directory }}/vllm"
+vllm_service_environmentfile: ""
+vllm_service_arguments:
+  - "--host"
+  - "{{ vllm_host }}"
+  - "--port"
+  - "{{ vllm_port }}"
+vllm_service_enabled: true
+vllm_service_started: true

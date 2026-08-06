@@ -1,0 +1,33 @@
+---
+# Ollama release to install. Keep the archive URL and checksum synchronized.
+ollama_version: "0.32.5"
+
+# This role currently supports the x86_64 release artifact only.
+ollama_arch: "{{ ansible_facts['architecture'] }}"
+ollama_upstream_arch: "amd64"
+
+ollama_download_directory: "{{ ansible_facts['env']['TMPDIR'] | default('/tmp', true) }}/ollama"
+ollama_install_directory: "/usr/local"
+ollama_bin_directory: "{{ ollama_install_directory }}/bin"
+ollama_library_directory: "{{ ollama_install_directory }}/lib/ollama"
+ollama_binary_mode: "0755"
+
+ollama_archive: "ollama-linux-{{ ollama_upstream_arch }}.tar.zst"
+ollama_release_url: "https://github.com/ollama/ollama/releases/download/v{{ ollama_version }}"
+ollama_archive_url: "{{ ollama_release_url }}/{{ ollama_archive }}"
+ollama_archive_checksum: "sha256:f7d6bdbcf71b83aa8670c4e7dc4b6936c0952fcf8b114eaf6a11cbadb9684214"
+
+ollama_user: "ollama"
+ollama_group: "ollama"
+ollama_home: "/usr/share/ollama"
+ollama_state_directory: "{{ ollama_home }}/.ollama"
+ollama_service_name: "ollama.service"
+ollama_host: "127.0.0.1:11434"
+ollama_api_url: "http://{{ ollama_host }}"
+ollama_service_environment:
+  - "HOME={{ ollama_home }}"
+  - "OLLAMA_HOST={{ ollama_host }}"
+  - "OLLAMA_MODELS={{ ollama_state_directory }}/models"
+ollama_service_environmentfile: ""
+ollama_service_enabled: true
+ollama_service_started: true

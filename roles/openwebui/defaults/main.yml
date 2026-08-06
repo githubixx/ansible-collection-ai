@@ -1,0 +1,42 @@
+---
+# Open WebUI package release to install. Keep the package name and version
+# synchronized when updating this pinned upstream release.
+openwebui_version: "0.11.0"
+openwebui_package: "open-webui[all]"
+
+# This role currently supports x86_64 Linux hosts only.
+openwebui_arch: "{{ ansible_facts['architecture'] }}"
+
+# uv must be installed by the host administrator. It can download a managed
+# Python 3.11 interpreter when creating this virtual environment.
+openwebui_uv_executable: "uv"
+openwebui_python_version: "3.11"
+
+openwebui_install_directory: "/opt/openwebui"
+openwebui_venv_directory: "{{ openwebui_install_directory }}/venv"
+openwebui_home: "/var/lib/openwebui"
+openwebui_data_directory: "{{ openwebui_home }}/data"
+openwebui_user: "openwebui"
+openwebui_group: "openwebui"
+
+openwebui_database_backend: "sqlite"
+
+openwebui_service_name: "openwebui.service"
+openwebui_host: "127.0.0.1"
+openwebui_port: 8080
+openwebui_api_url: "http://{{ openwebui_host }}:{{ openwebui_port }}"
+openwebui_service_environment:
+  - "HOME={{ openwebui_home }}"
+  - "PATH={{ openwebui_venv_directory }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  - "XDG_CACHE_HOME={{ openwebui_home }}/.cache"
+  - "XDG_CONFIG_HOME={{ openwebui_home }}/.config"
+  - "DATA_DIR={{ openwebui_data_directory }}"
+  - "DATABASE_URL=sqlite:///{{ openwebui_data_directory }}/webui.db"
+openwebui_service_environmentfile: "/etc/openwebui/openwebui.env"
+openwebui_service_arguments:
+  - "--host"
+  - "{{ openwebui_host }}"
+  - "--port"
+  - "{{ openwebui_port }}"
+openwebui_service_enabled: true
+openwebui_service_started: true

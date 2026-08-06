@@ -1,0 +1,18 @@
+# Managed by githubixx.ai.openshell. Change role variables rather than this file.
+[openshell]
+version = 1
+
+[openshell.gateway]
+bind_address = "{{ openshell_gateway_bind_address }}"
+compute_drivers = ["{{ openshell_compute_driver }}"]
+default_image = "ghcr.io/nvidia/openshell-community/sandboxes/base:latest"
+
+[openshell.drivers.docker]
+socket_path = "/var/run/docker.sock"
+image_pull_policy = "IfNotPresent"
+sandbox_namespace = "docker-dev"
+grpc_endpoint = "https://host.openshell.internal:17670"
+network_name = "openshell-docker"
+host_gateway_ip = "172.17.0.1"
+enable_bind_mounts = false
+sandbox_pids_limit = 2048
