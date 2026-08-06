@@ -2,6 +2,10 @@
 
 All notable changes to this collection are documented in this file.
 
+## 0.1.4
+
+- fix collection version parsing in the release workflow.
+
 ## 0.1.3
 
 - add manual release workflow dispatch trigger.
