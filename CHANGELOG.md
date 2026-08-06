@@ -6,7 +6,7 @@ All notable changes to this collection are documented in this file.
 
 ### Added
 
-- Initial `githubixx.ai.openshell` role for installing NVIDIA OpenShell or later on supported Linux hosts.
+- Initial `githubixx.ai.openshell` role for installing NVIDIA OpenShell on supported Linux hosts.
 - Initial `githubixx.ai.ollama` role for installing Ollama on supported Linux hosts.
 - Initial `githubixx.ai.llama` role for installing llama.cpp `llama serve` instances from pinned llama.app binaries.
 - Initial `githubixx.ai.openwebui` role for installing Open WebUI as a native systemd service.
