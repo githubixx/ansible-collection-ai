@@ -11,6 +11,8 @@ license:
 repository: "https://github.com/githubixx/ansible-collection-ai"
 tags:
   - ai
+  - comfyui
+  - llama
   - nvidia
   - openshell
   - ollama
