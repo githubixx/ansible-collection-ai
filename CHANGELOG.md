@@ -2,6 +2,10 @@
 
 All notable changes to this collection are documented in this file.
 
+## 0.1.3
+
+- add manual release workflow dispatch trigger.
+
 ## 0.1.2
 
 - fix `release.yml`
