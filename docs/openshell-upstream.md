@@ -6,8 +6,8 @@ This document records how `githubixx.ai.openshell` relates to NVIDIA's upstream 
 
 - Repository: <https://github.com/NVIDIA/OpenShell>
 - Installer: <https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh>
-- Last reviewed release: `v0.0.92`
-- Role default: `openshell_version: "0.0.92"`
+- Last reviewed release: `v0.0.101`
+- Role default: `openshell_version: "0.0.101"`
 - Supported role platform: Linux x86_64 on Ubuntu 24.04, Ubuntu 26.04, and Arch Linux.
 
 The role downloads the pinned CLI and gateway release artifacts directly from GitHub Releases. The archive checksums in [the role defaults](../roles/openshell/defaults/main.yml) must match the configured release.
