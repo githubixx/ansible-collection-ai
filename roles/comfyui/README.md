@@ -18,7 +18,7 @@ All public variables use the `comfyui_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `comfyui_version` | `v0.30.0` | Pinned upstream ComfyUI Git tag. |
+| `comfyui_version` | `v0.31.0` | Pinned upstream ComfyUI Git tag. |
 | `comfyui_repository` | ComfyUI upstream repository | Git repository to clone. |
 | `comfyui_accelerator` | `cpu` | Explicit PyTorch resource profile. |
 | `comfyui_pytorch_packages` | Profile packages | PyTorch packages to install into the virtual environment. Override for the `external` profile. |

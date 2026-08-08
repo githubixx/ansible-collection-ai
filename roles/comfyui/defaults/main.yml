@@ -1,7 +1,7 @@
 ---
 # ComfyUI release to install. Keep the application and its dependency profiles
 # compatible when updating this pinned upstream tag.
-comfyui_version: "v0.30.0"
+comfyui_version: "v0.31.0"
 comfyui_repository: "https://github.com/Comfy-Org/ComfyUI.git"
 
 # This role currently supports x86_64 Linux hosts only.
