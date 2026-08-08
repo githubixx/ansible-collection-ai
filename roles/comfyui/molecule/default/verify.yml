@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    comfyui_test_version: "v0.30.0"
+    comfyui_test_version: "v0.31.0"
   tasks:
     - name: Query ComfyUI service user
       ansible.builtin.getent:
