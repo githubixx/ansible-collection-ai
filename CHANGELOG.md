@@ -2,6 +2,16 @@
 
 All notable changes to this collection are documented in this file.
 
+## 0.1.6
+
+- update `galaxy.yml`
+- update `CHANGELOG`
+
+## 0.1.5
+
+- update ComfyUI to v0.31.0
+- update OpenShell to version 0.0.101
+
 ## 0.1.4
 
 - fix collection version parsing in the release workflow.
