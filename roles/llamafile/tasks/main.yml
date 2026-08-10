@@ -1,0 +1,259 @@
+---
+- name: Validate supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['system'] == 'Linux'
+      - >-
+        (ansible_facts['distribution'] == 'Ubuntu' and
+        ansible_facts['distribution_major_version'] in ['24', '26']) or
+        ansible_facts['distribution'] == 'Archlinux'
+      - ansible_facts['architecture'] == 'x86_64'
+      - llamafile_arch == 'x86_64'
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: >-
+      githubixx.ai.llamafile supports x86_64 Ubuntu 24.04/26.04 and Arch Linux
+      with systemd.
+
+- name: Validate llamafile download controls
+  ansible.builtin.assert:
+    that:
+      - llamafile_download_retries | int >= 0
+      - llamafile_download_retry_delay | int >= 0
+      - llamafile_download_connect_timeout | int > 0
+      - llamafile_download_async_timeout | int > 0
+      - llamafile_download_poll_interval | int > 0
+      - llamafile_healthcheck_retries | int > 0
+      - llamafile_healthcheck_delay | int > 0
+      - llamafile_healthcheck_path is match('^/')
+    fail_msg: >-
+      Download and health-check retry, timeout, and poll values must be valid
+      positive integers; retries and retry delay may be zero.
+
+- name: Validate llamafile model configuration
+  ansible.builtin.assert:
+    that:
+      - item.name is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - item.id is defined
+      - item.id in llamafile_catalog or (item.url is defined and item.checksum is defined)
+      - item.run_mode in ['server', 'combined']
+      - item.environment | default([]) is iterable
+      - item.arguments | default([]) is iterable
+      - >-
+        item.filename | default(llamafile_catalog.get(item.id, {}).filename |
+        default(item.name ~ '.llamafile')) is
+        match('^[A-Za-z0-9][A-Za-z0-9_.-]*\.llamafile$')
+      - >-
+        item.checksum | default(llamafile_catalog.get(item.id, {}).checksum |
+        default('')) is match('^sha256:[0-9a-f]{64}$')
+      - item.run_mode != 'combined' or not (item.enabled | default(false) or item.started | default(false))
+      - item.run_mode != 'server' or item.host | default('127.0.0.1') is match('^[A-Za-z0-9.:-]+$')
+      - item.run_mode != 'server' or item.port | default(8080) | int > 0
+      - item.gpu | default('auto') in ['auto', 'nvidia', 'amd', 'vulkan', 'disable']
+    fail_msg: >-
+      Every llamafile model requires a safe unique name, a catalog ID or explicit
+      URL/checksum pair, a valid run mode, and valid runtime settings. Combined
+      mode is interactive and cannot be enabled or started as a systemd service.
+  loop: "{{ llamafile_models }}"
+  loop_control:
+    label: "{{ item.name | default('missing name') }}"
+
+- name: Validate llamafile model names are unique
+  ansible.builtin.assert:
+    that:
+      - llamafile_models | map(attribute='name') | list | unique | length == llamafile_models | length
+    fail_msg: llamafile model names must be unique.
+
+- name: Install llamafile download prerequisite
+  ansible.builtin.package:
+    name: curl
+    state: present
+
+- name: Define normalized llamafile server models
+  ansible.builtin.set_fact:
+    _llamafile_server_models: >-
+      {{ llamafile_models | selectattr('run_mode', 'equalto', 'server') | list }}
+
+- name: Define normalized llamafile combined-mode models
+  ansible.builtin.set_fact:
+    _llamafile_combined_models: >-
+      {{ llamafile_models | selectattr('run_mode', 'equalto', 'combined') | list }}
+
+- name: Create llamafile group
+  ansible.builtin.group:
+    name: "{{ llamafile_group }}"
+    system: true
+    state: present
+
+- name: Create llamafile service user
+  ansible.builtin.user:
+    name: "{{ llamafile_user }}"
+    group: "{{ llamafile_group }}"
+    home: "{{ llamafile_home }}"
+    create_home: true
+    shell: "/usr/sbin/nologin"
+    system: true
+    state: present
+
+- name: Create llamafile root-owned artifact directory
+  ansible.builtin.file:
+    path: "{{ llamafile_artifact_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create llamafile service directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ llamafile_user }}"
+    group: "{{ llamafile_group }}"
+    mode: "0750"
+  loop:
+    - "{{ llamafile_runtime_directory }}"
+    - "{{ llamafile_cache_directory }}"
+    - "{{ llamafile_download_directory }}"
+    - "{{ llamafile_download_log_directory }}"
+
+- name: Install resumable llamafile download scripts
+  ansible.builtin.template:
+    src: download-llamafile.sh.j2
+    dest: "{{ llamafile_download_directory }}/{{ item.name }}.download"
+    owner: root
+    group: root
+    mode: "0700"
+  loop: "{{ llamafile_models }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Start resumable llamafile downloads
+  ansible.builtin.command:
+    argv:
+      - "{{ llamafile_download_directory }}/{{ item.name }}.download"
+  async: "{{ llamafile_download_async_timeout }}"
+  poll: 0
+  register: _llamafile_download_jobs
+  changed_when: false
+  loop: "{{ llamafile_models }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Report llamafile transfer log locations
+  ansible.builtin.debug:
+    msg: >-
+      Downloading or verifying {{ item.item.name }}. Transfer progress is
+      recorded in {{ llamafile_download_log_directory }}/{{ item.item.name }}.log.
+  loop: "{{ _llamafile_download_jobs.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Wait for resumable llamafile downloads
+  ansible.builtin.async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: _llamafile_download_results
+  changed_when: _llamafile_download_results.stdout is search('^changed=true$', multiline=True)
+  retries: "{{ (llamafile_download_async_timeout | int / llamafile_download_poll_interval | int) | int + 1 }}"
+  delay: "{{ llamafile_download_poll_interval }}"
+  until: _llamafile_download_results.finished
+  notify: Reload and restart llamafile server instances
+  loop: "{{ _llamafile_download_jobs.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Remove resumable llamafile download scripts
+  ansible.builtin.file:
+    path: "{{ llamafile_download_directory }}/{{ item.name }}.download"
+    state: absent
+  loop: "{{ llamafile_models }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create llamafile combined-mode launcher directory
+  ansible.builtin.file:
+    path: "{{ llamafile_combined_launcher_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install llamafile combined-mode launchers
+  ansible.builtin.template:
+    src: llamafile-combined.j2
+    dest: "{{ llamafile_combined_launcher_directory }}/{{ item.name }}-llamafile"
+    owner: root
+    group: root
+    mode: "0755"
+  when: item.run_mode == 'combined'
+  loop: "{{ llamafile_models }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Gather stale combined-mode systemd service units
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ item.name }}.service"
+  register: _llamafile_combined_service_units
+  loop: "{{ _llamafile_combined_models }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Stop and disable stale combined-mode systemd services
+  ansible.builtin.systemd_service:
+    name: "{{ item.item.name }}.service"
+    enabled: false
+    state: stopped
+  when: item.stat.exists
+  loop: "{{ _llamafile_combined_service_units.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Remove stale combined-mode systemd service units
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item.item.name }}.service"
+    state: absent
+  notify: Reload systemd daemon
+  when: item.stat.exists
+  loop: "{{ _llamafile_combined_service_units.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Install llamafile server systemd services
+  ansible.builtin.template:
+    src: llamafile.service.j2
+    dest: "/etc/systemd/system/{{ item.name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ _llamafile_server_models }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload and restart llamafile server instances
+
+- name: Flush llamafile handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start llamafile server services
+  ansible.builtin.systemd_service:
+    name: "{{ item.name }}.service"
+    daemon_reload: true
+    enabled: "{{ item.enabled | default(true) }}"
+    state: "{{ 'started' if item.started | default(true) else 'stopped' }}"
+  loop: "{{ _llamafile_server_models }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Wait for llamafile loopback APIs
+  when:
+    - item.started | default(true)
+    - item.host | default('127.0.0.1') in ['127.0.0.1', 'localhost', '::1']
+  ansible.builtin.uri:
+    url: >-
+      http://{{ item.host | default('127.0.0.1') }}:{{ item.port | default(8080) }}{{ llamafile_healthcheck_path }}
+    status_code: 200
+  register: _llamafile_api
+  changed_when: false
+  retries: "{{ llamafile_healthcheck_retries }}"
+  delay: "{{ llamafile_healthcheck_delay }}"
+  until: _llamafile_api.status == 200
+  loop: "{{ _llamafile_server_models }}"
+  loop_control:
+    label: "{{ item.name }}"

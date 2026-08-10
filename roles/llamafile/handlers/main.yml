@@ -1,0 +1,14 @@
+---
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+- name: Reload and restart llamafile server instances
+  ansible.builtin.systemd_service:
+    name: "{{ item.name }}.service"
+    daemon_reload: true
+    enabled: "{{ item.enabled | default(true) }}"
+    state: "{{ 'restarted' if item.started | default(true) else 'stopped' }}"
+  loop: "{{ _llamafile_server_models }}"
+  loop_control:
+    label: "{{ item.name }}"
