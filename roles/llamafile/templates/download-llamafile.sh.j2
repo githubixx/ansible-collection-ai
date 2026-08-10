@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -o errexit
+set -o nounset
+set -o pipefail
+
+artifact={{ (item.filename | default(llamafile_catalog.get(item.id, {}).filename | default(item.name ~ '.llamafile'))) | quote }}
+url={{ (item.url | default(llamafile_catalog.get(item.id, {}).url | default(''))) | quote }}
+checksum={{ (item.checksum | default(llamafile_catalog.get(item.id, {}).checksum | default(''))) | quote }}
+destination={{ (llamafile_artifact_directory ~ '/' ~ (item.filename | default(llamafile_catalog.get(item.id, {}).filename | default(item.name ~ '.llamafile')))) | quote }}
+partial={{ (llamafile_download_directory ~ '/' ~ item.name ~ '.part') | quote }}
+log={{ (llamafile_download_log_directory ~ '/' ~ item.name ~ '.log') | quote }}
+
+if [[ -f "${destination}" ]] && printf '%s  %s\n' "${checksum#sha256:}" "${destination}" | sha256sum --check --status; then
+  printf 'changed=false\n'
+  exit 0
+fi
+
+rm -f "${destination}"
+{% if llamafile_download_cleanup_partial %}
+rm -f "${partial}"
+{% endif %}
+printf 'Downloading %s from %s\n' "${artifact}" "${url}" >> "${log}"
+curl --fail --location --show-error --progress-bar \
+  --continue-at - \
+  --retry {{ llamafile_download_retries | int }} \
+  --retry-delay {{ llamafile_download_retry_delay | int }} \
+  --retry-all-errors \
+  --connect-timeout {{ llamafile_download_connect_timeout | int }} \
+  --output "${partial}" \
+  "${url}" 2>> "${log}"
+printf '%s  %s\n' "${checksum#sha256:}" "${partial}" | sha256sum --check --status
+install --owner=root --group=root --mode=0755 "${partial}" "${destination}"
+rm -f "${partial}"
+printf 'changed=true\n'

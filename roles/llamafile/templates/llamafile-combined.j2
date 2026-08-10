@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -o errexit
+set -o nounset
+set -o pipefail
+
+export HOME={{ llamafile_home | quote }}
+export TMPDIR={{ llamafile_runtime_directory | quote }}
+{% for environment in item.environment | default([]) %}
+export {{ environment | quote }}
+{% endfor %}
+exec {{ (llamafile_artifact_directory ~ '/' ~ (item.filename | default(llamafile_catalog.get(item.id, {}).filename | default(item.name ~ '.llamafile')))) | quote }}{% if item.gpu | default('auto') != 'auto' %} --gpu {{ item.gpu | default('auto') | quote }}{% endif %}{% if item.gpu | default('auto') != 'disable' %} -ngl {{ item.gpu_layers | default(999) | int }}{% endif %}{% if item.threads is defined %} -t {{ item.threads | int }}{% endif %}{% if item.context_size is defined %} --ctx-size {{ item.context_size | int }}{% endif %}{% for argument in item.arguments | default([]) %} {{ argument | quote }}{% endfor %} "$@"

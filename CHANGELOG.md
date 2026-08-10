@@ -2,6 +2,10 @@
 
 All notable changes to this collection are documented in this file.
 
+## 0.2.0
+
+- add the `githubixx.ai.llamafile` role for pinned pre-built llamafile 0.10.* model bundles.
+
 ## 0.1.6
 
 - update `galaxy.yml`

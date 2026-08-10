@@ -1,0 +1,129 @@
+---
+- name: Verify Qwen3.5 0.8B llamafile installation
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    llamafile_test_artifact: "/opt/llamafile/models/Qwen3.5-0.8B-Q8_0.llamafile"
+    llamafile_test_checksum: "ec7c3ab7903accb1b4d890cfd1fc670fabc642dcb4896735bd69d46b2629408d"
+  tasks:
+    - name: Gather llamafile model metadata
+      ansible.builtin.stat:
+        path: "{{ llamafile_test_artifact }}"
+      register: llamafile_test_artifact_stat
+
+    - name: Assert llamafile model is installed
+      ansible.builtin.assert:
+        that:
+          - llamafile_test_artifact_stat.stat.exists
+          - llamafile_test_artifact_stat.stat.executable
+          - llamafile_test_artifact_stat.stat.pw_name == 'root'
+          - llamafile_test_artifact_stat.stat.gr_name == 'root'
+          - llamafile_test_artifact_stat.stat.mode == '0755'
+
+    - name: Calculate llamafile model checksum
+      ansible.builtin.stat:
+        path: "{{ llamafile_test_artifact }}"
+        checksum_algorithm: sha256
+      register: llamafile_test_artifact_checksum
+
+    - name: Assert expected llamafile model checksum
+      ansible.builtin.assert:
+        that:
+          - llamafile_test_artifact_checksum.stat.checksum == llamafile_test_checksum
+
+    - name: Gather llamafile transfer log metadata
+      ansible.builtin.stat:
+        path: "/var/lib/llamafile/download-logs/qwen35-08b.log"
+      register: llamafile_test_download_log
+
+    - name: Assert llamafile transfer log exists
+      ansible.builtin.assert:
+        that:
+          - llamafile_test_download_log.stat.exists
+          - llamafile_test_download_log.stat.pw_name == 'root'
+          - llamafile_test_download_log.stat.gr_name == 'root'
+
+    - name: Gather completed llamafile partial download metadata
+      ansible.builtin.stat:
+        path: "/var/lib/llamafile/downloads/qwen35-08b.part"
+      register: llamafile_test_partial_download
+
+    - name: Assert completed download has no partial artifact
+      ansible.builtin.assert:
+        that:
+          - not llamafile_test_partial_download.stat.exists
+
+    - name: Gather llamafile service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert Qwen3.5 combined-mode service is absent
+      when: ansible_facts['distribution'] == 'Archlinux'
+      ansible.builtin.assert:
+        that:
+          - "'qwen35-08b.service' not in ansible_facts['services']"
+
+    - name: Assert Qwen3.5 llamafile service is running
+      when: ansible_facts['distribution'] != 'Archlinux'
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['services']['qwen35-08b.service']['state'] == 'running'
+          - ansible_facts['services']['qwen35-08b.service']['status'] == 'enabled'
+
+    - name: Query Qwen3.5 llamafile health API
+      when: ansible_facts['distribution'] != 'Archlinux'
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8080/health
+        status_code: 200
+      changed_when: false
+
+    - name: Read Qwen3.5 llamafile systemd unit
+      when: ansible_facts['distribution'] != 'Archlinux'
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/qwen35-08b.service
+      register: llamafile_test_service_unit
+
+    - name: Assert Qwen3.5 service forces CPU inference
+      when: ansible_facts['distribution'] != 'Archlinux'
+      ansible.builtin.assert:
+        that:
+          - "'ExecStart=/bin/sh -c' in (llamafile_test_service_unit.content | b64decode)"
+          - "'--gpu disable' in (llamafile_test_service_unit.content | b64decode)"
+
+    - name: Gather Qwen3.5 combined-mode launcher metadata
+      when: ansible_facts['distribution'] == 'Archlinux'
+      ansible.builtin.stat:
+        path: /usr/local/bin/qwen35-08b-llamafile
+      register: llamafile_test_combined_launcher
+
+    - name: Assert Qwen3.5 combined-mode launcher is installed
+      when: ansible_facts['distribution'] == 'Archlinux'
+      ansible.builtin.assert:
+        that:
+          - llamafile_test_combined_launcher.stat.exists
+          - llamafile_test_combined_launcher.stat.executable
+          - llamafile_test_combined_launcher.stat.pw_name == 'root'
+          - llamafile_test_combined_launcher.stat.gr_name == 'root'
+          - llamafile_test_combined_launcher.stat.mode == '0755'
+
+    - name: Read Qwen3.5 combined-mode launcher
+      when: ansible_facts['distribution'] == 'Archlinux'
+      ansible.builtin.slurp:
+        src: /usr/local/bin/qwen35-08b-llamafile
+      register: llamafile_test_combined_launcher_content
+
+    - name: Query Qwen3.5 combined-mode launcher help
+      when: ansible_facts['distribution'] == 'Archlinux'
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/qwen35-08b-llamafile
+          - --help
+      changed_when: false
+      register: llamafile_test_combined_launcher_help
+
+    - name: Assert Qwen3.5 combined-mode launcher forces CPU inference
+      when: ansible_facts['distribution'] == 'Archlinux'
+      ansible.builtin.assert:
+        that:
+          - "'--gpu disable' in (llamafile_test_combined_launcher_content.content | b64decode)"
+          - "'llama' in (llamafile_test_combined_launcher_help.stdout | lower)"

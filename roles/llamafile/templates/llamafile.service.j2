@@ -1,0 +1,26 @@
+# Managed by githubixx.ai.llamafile. Local changes will be overwritten.
+[Unit]
+Description=llamafile Server ({{ item.name }})
+Documentation=https://docs.mozilla.ai/llamafile/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User={{ llamafile_user }}
+Group={{ llamafile_group }}
+WorkingDirectory={{ llamafile_runtime_directory }}
+Environment="HOME={{ llamafile_home }}"
+Environment="TMPDIR={{ llamafile_runtime_directory }}"
+{% for environment in item.environment | default([]) %}
+Environment="{{ environment }}"
+{% endfor %}
+{% if item.environmentfile | default('') | length > 0 %}
+EnvironmentFile="{{ item.environmentfile }}"
+{% endif %}
+ExecStart=/bin/sh -c 'exec {{ llamafile_artifact_directory }}/{{ item.filename | default(llamafile_catalog.get(item.id, {}).filename | default(item.name ~ '.llamafile')) }} --server --host {{ item.host | default('127.0.0.1') }} --port {{ item.port | default(8080) }}{% if item.jinja | default(true) %} --jinja{% endif %}{% if item.gpu | default('auto') != 'auto' %} --gpu {{ item.gpu | default('auto') }}{% endif %}{% if item.gpu | default('auto') != 'disable' %} -ngl {{ item.gpu_layers | default(999) }}{% endif %}{% if item.threads is defined %} -t {{ item.threads }}{% endif %}{% if item.context_size is defined %} --ctx-size {{ item.context_size }}{% endif %}{% for argument in item.arguments | default([]) %} {{ argument }}{% endfor %}'{{ '\n' }}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

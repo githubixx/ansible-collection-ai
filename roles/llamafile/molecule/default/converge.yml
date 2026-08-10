@@ -1,0 +1,21 @@
+---
+- name: Install Qwen3.5 0.8B llamafile
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    llamafile_download_poll_interval: 5
+    llamafile_models:
+      - name: qwen35-08b
+        id: qwen35-08b-q8-0
+        run_mode: "{{ 'combined' if ansible_facts['distribution'] == 'Archlinux' else 'server' }}"
+        host: 127.0.0.1
+        port: 8080
+        gpu: disable
+        gpu_layers: 0
+        enabled: "{{ ansible_facts['distribution'] != 'Archlinux' }}"
+        started: "{{ ansible_facts['distribution'] != 'Archlinux' }}"
+  tasks:
+    - name: Include llamafile
+      ansible.builtin.include_role:
+        name: llamafile
