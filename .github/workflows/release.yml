@@ -12,15 +12,21 @@ on:
 
 defaults:
   run:
+    shell: bash
     working-directory: .
+
+permissions:
+  contents: write
 
 jobs:
   release:
-    name: Publish collection to Ansible Galaxy
+    name: Release collection
     runs-on: ubuntu-latest
     steps:
       - name: Check out the source revision
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,19 +40,47 @@ jobs:
         run: |
           collection_version=$(python -c 'import yaml; print(yaml.safe_load(open("galaxy.yml"))["version"])')
 
-          test -n "$collection_version"
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            test "$GITHUB_REF_TYPE" = "tag"
-            test "$GITHUB_REF_NAME" = "$collection_version"
+          test -n "${collection_version}"
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            test "${GITHUB_REF_TYPE}" = "tag"
+            test "${GITHUB_REF_NAME}" = "${collection_version}"
           fi
 
+          echo "COLLECTION_VERSION=${collection_version}" >> "${GITHUB_ENV}"
+          echo "COLLECTION_ARTIFACT=dist/githubixx-ai-${collection_version}.tar.gz" >> "${GITHUB_ENV}"
+
+      - name: Install git-cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          version: v2.13.1
+
       - name: Build collection
-        run: ansible-galaxy collection build --force
+        run: ansible-galaxy collection build --force --output-path dist
+
+      - name: Generate release notes
+        run: |
+          if git rev-parse --verify --quiet "refs/tags/${COLLECTION_VERSION}"; then
+            git-cliff --config cliff.toml --latest --strip header --output release-notes.md
+          else
+            git-cliff --config cliff.toml --unreleased --tag "${COLLECTION_VERSION}" \
+              --strip header --output release-notes.md
+          fi
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${COLLECTION_VERSION}" >/dev/null 2>&1; then
+            gh release edit "${COLLECTION_VERSION}" --title "${COLLECTION_VERSION}" \
+              --notes-file release-notes.md
+          else
+            gh release create "${COLLECTION_VERSION}" --target "${GITHUB_SHA}" \
+              --title "${COLLECTION_VERSION}" --notes-file release-notes.md
+          fi
+
+          gh release upload "${COLLECTION_VERSION}" "${COLLECTION_ARTIFACT}" --clobber
 
       - name: Publish collection to Ansible Galaxy
         env:
           GALAXY_API_KEY: ${{ secrets.GALAXY_API_KEY }}
-        run: |
-          collection_version=$(python -c 'import yaml; print(yaml.safe_load(open("galaxy.yml"))["version"])')
-          ansible-galaxy collection publish "githubixx-ai-${collection_version}.tar.gz" \
-            --api-key "$GALAXY_API_KEY"
+        run: ansible-galaxy collection publish "${COLLECTION_ARTIFACT}" --api-key "${GALAXY_API_KEY}"
