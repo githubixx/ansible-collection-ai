@@ -25,3 +25,5 @@ For requirements and usage see:
 ## Development
 
 Build the collection from this directory with `ansible-galaxy collection build`. The collection declares Ansible Core 2.15 or later in [meta/runtime.yml](meta/runtime.yml).
+
+GitHub Release notes are generated from Conventional Commit subjects. Use `feat:` for additions and `fix:` for bug fixes. Use `refactor:`, `perf:`, `build:`, `ci:`, `chore:`, or `deps:` for changes; other commit types are omitted from generated release notes.
