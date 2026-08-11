@@ -17,7 +17,7 @@ All public variables use the `ollama_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `ollama_version` | `0.32.5` | Pinned Ollama release. |
+| `ollama_version` | `0.32.9` | Pinned Ollama release. |
 | `ollama_user` | `ollama` | Dedicated system service account. |
 | `ollama_host` | `127.0.0.1:11434` | API bind address. |
 | `ollama_api_url` | `http://{{ ollama_host }}` | Loopback API URL for role readiness checks. |
@@ -27,7 +27,7 @@ All public variables use the `ollama_` prefix.
 | `ollama_service_enabled` | `true` | Enable the system service. |
 | `ollama_service_started` | `true` | Start the system service. |
 
-The default checksum corresponds to the v0.32.5 Linux x86_64 base archive. Override the version, archive URL, and checksum together only after verifying the upstream release checksum.
+The default checksum corresponds to the v0.32.9 Linux x86_64 base archive. Override the version, archive URL, and checksum together only after verifying the upstream release checksum.
 
 See the [upstream maintenance guide](../../docs/ollama-upstream.md) when reviewing a new Ollama release or changes to upstream `install.sh`.
 
