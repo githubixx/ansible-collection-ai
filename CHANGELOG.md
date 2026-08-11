@@ -2,6 +2,11 @@
 
 All notable changes to this collection are documented in this file.
 
+## 0.2.1
+
+- update Ollama to v0.12.3
+- generate GitHub Release notes with `git-cliff`
+
 ## 0.2.0
 
 - add the `githubixx.ai.llamafile` role for pinned pre-built llamafile 0.10.* model bundles.
@@ -14,7 +19,7 @@ All notable changes to this collection are documented in this file.
 ## 0.1.5
 
 - update ComfyUI to v0.31.0
-- update OpenShell to version 0.0.101
+- update OpenShell to version v0.0.101
 
 ## 0.1.4
 
