@@ -50,9 +50,9 @@ jobs:
           echo "COLLECTION_ARTIFACT=dist/githubixx-ai-${collection_version}.tar.gz" >> "${GITHUB_ENV}"
 
       - name: Install git-cliff
-        uses: orhun/git-cliff-action@v4
+        uses: taiki-e/install-action@v2
         with:
-          version: v2.13.1
+          tool: git-cliff@2.13.1
 
       - name: Build collection
         run: ansible-galaxy collection build --force --output-path dist
