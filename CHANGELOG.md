@@ -2,6 +2,12 @@
 
 All notable changes to this collection are documented in this file.
 
+## 0.2.2
+
+- fix(ComfyUI): fix `ExecStart` value in `comfyui.service.j2`
+- fix(ComfyUI): ensure `.ansible` and `.ansible/tmp` directories exists
+- deps: update ComfyUI to v0.32.0
+
 ## 0.2.1
 
 - update Ollama to v0.12.3
