@@ -16,7 +16,7 @@ Environment="{{ environment }}"
 {% if comfyui_service_environmentfile | length > 0 %}
 EnvironmentFile="{{ comfyui_service_environmentfile }}"
 {% endif %}
-ExecStart={{ comfyui_venv_directory }}/bin/python main.py {% for argument in comfyui_service_arguments %}{{ argument }} {% endfor %}{% for argument in comfyui_accelerator_arguments %}{{ argument }} {% endfor %}{% if comfyui_manager_enabled %}--enable-manager{% endif %}
+ExecStart={{ comfyui_venv_directory }}/bin/python main.py {% for argument in comfyui_service_arguments %}{{ argument }} {% endfor %}{% for argument in comfyui_accelerator_arguments %}{{ argument }} {% endfor %}{% if comfyui_manager_enabled %}--enable-manager{% endif %}{{ '\n' -}}
 Restart=always
 RestartSec=3
 
