@@ -1,6 +1,6 @@
 ---
 # NVIDIA OpenShell release to install. Keep the CLI and gateway on the same release.
-openshell_version: "0.0.101"
+openshell_version: "0.0.104"
 
 # This role currently supports the x86_64 release artifacts only.
 openshell_arch: "{{ ansible_facts['architecture'] }}"
@@ -14,8 +14,8 @@ openshell_gateway_archive: "openshell-gateway-{{ openshell_upstream_arch }}-unkn
 openshell_release_url: "https://github.com/NVIDIA/OpenShell/releases/download/v{{ openshell_version }}"
 openshell_cli_url: "{{ openshell_release_url }}/{{ openshell_cli_archive }}"
 openshell_gateway_url: "{{ openshell_release_url }}/{{ openshell_gateway_archive }}"
-openshell_cli_checksum: "sha256:7d49ab2a5ff0b826bd2bdca5e0244010f832dfc6901c808ea8c8467004c26913"
-openshell_gateway_checksum: "sha256:eaeb094ccf7dcb1fe00c7e926e6aa9aaaefb89ecbef8343720628b0fd2d84654"
+openshell_cli_checksum: "sha256:a8db262ad9af996a3d9203fcc3d7ba90fe2c6cb0f3fffc9b7d1b9b44cd27df22"
+openshell_gateway_checksum: "sha256:577fc5cb9ef64bc0c1afc9b8fc85cdfe9ef546ebf40794085b31d78200928bb1"
 
 # The local gateway runs as Ansible's connection user. Override when OpenShell
 # should be available to another user.
