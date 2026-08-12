@@ -2,6 +2,11 @@
 
 All notable changes to this collection are documented in this file.
 
+## 0.2.3
+
+- deps: update OpenShell to v0.0.104
+- chore(openshell): retry transient GitHub release downloads
+
 ## 0.2.2
 
 - fix(ComfyUI): fix `ExecStart` value in `comfyui.service.j2`
