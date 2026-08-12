@@ -83,6 +83,8 @@
     - "{{ comfyui_temp_directory }}"
     - "{{ comfyui_home }}/.cache"
     - "{{ comfyui_home }}/.config"
+    - "{{ comfyui_home }}/.ansible"
+    - "{{ comfyui_home }}/.ansible/tmp"
     - "{{ comfyui_home }}/user"
 
 - name: Install ComfyUI application
