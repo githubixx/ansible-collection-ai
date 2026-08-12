@@ -18,7 +18,7 @@ All public variables use the `openshell_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `openshell_version` | `0.0.101` | Pinned OpenShell CLI and gateway release. |
+| `openshell_version` | `0.0.104` | Pinned OpenShell CLI and gateway release. |
 | `openshell_user` | `ansible_user` | Non-root user owning the local gateway. |
 | `openshell_bin_directory` | `~/.local/bin` | Executable directory owned by `openshell_user`. |
 | `openshell_compute_driver` | `docker` | The selected gateway driver. Only Docker is supported initially. |
@@ -26,7 +26,7 @@ All public variables use the `openshell_` prefix.
 | `openshell_gateway_service_enabled` | `true` | Enable the user service. |
 | `openshell_gateway_service_started` | `true` | Start the user service and register the local gateway. |
 
-The default checksums correspond to v0.0.101 x86_64 release artifacts. Override the version, archive URLs, and both checksums together only after verifying the upstream release checksums.
+The default checksums correspond to v0.0.104 x86_64 release artifacts. Override the version, archive URLs, and both checksums together only after verifying the upstream release checksums.
 
 Check the [latest OpenShell release](https://github.com/NVIDIA/OpenShell/releases/latest) for the current version and SHA-256 checksums.
 
