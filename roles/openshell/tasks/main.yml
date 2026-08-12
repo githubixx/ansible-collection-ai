@@ -96,6 +96,10 @@
     owner: "{{ openshell_owner }}"
     group: "{{ openshell_group }}"
     mode: "0600"
+  register: _openshell_cli_download
+  retries: 3
+  delay: 5
+  until: _openshell_cli_download is succeeded
 
 - name: Download OpenShell gateway archive
   ansible.builtin.get_url:
@@ -105,6 +109,10 @@
     owner: "{{ openshell_owner }}"
     group: "{{ openshell_group }}"
     mode: "0600"
+  register: _openshell_gateway_download
+  retries: 3
+  delay: 5
+  until: _openshell_gateway_download is succeeded
 
 - name: Unarchive OpenShell CLI
   ansible.builtin.unarchive:
