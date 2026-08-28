@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    vllm_test_version: "0.26.0"
+    vllm_test_version: "0.28.0"
     vllm_test_accelerator: "{{ 'amd_rocm' if 'amd_rocm' in group_names else 'nvidia_cuda' }}"
   tasks:
     - name: Query vLLM service user
@@ -50,8 +50,9 @@
       become_user: vllm
       ansible.builtin.command:
         argv:
-          - /opt/vllm/venv/bin/vllm
-          - --version
+          - /opt/vllm/venv/bin/python
+          - -c
+          - "from importlib.metadata import version; print(version('vllm'))"
       register: vllm_test_version_query
       changed_when: false
 
@@ -102,5 +103,5 @@
     - name: Assert vLLM service is disabled and stopped
       ansible.builtin.assert:
         that:
-          - ansible_facts['services']['vllm.service']['state'] == 'stopped'
+          - ansible_facts['services']['vllm.service']['state'] in ['inactive', 'stopped']
           - ansible_facts['services']['vllm.service']['status'] == 'disabled'

@@ -36,6 +36,11 @@
       - --version
   changed_when: false
 
+- name: Install vLLM prerequisites
+  ansible.builtin.package:
+    name: acl
+    state: present
+
 - name: Create vLLM group
   ansible.builtin.group:
     name: "{{ vllm_group }}"
@@ -70,8 +75,9 @@
   become_user: "{{ vllm_user }}"
   ansible.builtin.command:
     argv:
-      - "{{ vllm_venv_directory }}/bin/vllm"
-      - --version
+      - "{{ vllm_venv_directory }}/bin/python"
+      - -c
+      - "from importlib.metadata import version; print(version('vllm'))"
   register: _vllm_installed_version_query
   changed_when: false
   failed_when: false

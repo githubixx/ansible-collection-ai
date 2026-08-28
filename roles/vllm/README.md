@@ -7,11 +7,12 @@ Installs vLLM from a pinned PyPI package in a `uv`-managed Python 3.12 virtual e
 - Ansible Core 2.15 or later.
 - Linux x86_64 running Ubuntu 24.04, Ubuntu 26.04, or Arch Linux.
 - systemd.
+- The `acl` package, installed by this role, to support Ansible task execution as the service account.
 - `uv` installed and available on the managed host PATH. The role uses it to obtain Python 3.12 when needed but does not install or update `uv`.
 - Network access to PyPI, Astral's Python distributions, and, for AMD, the vLLM ROCm wheel index during installation.
 - A configured and supported GPU runtime:
   - NVIDIA: a driver compatible with the CUDA PyTorch backend chosen by `uv --torch-backend=auto`.
-  - AMD: ROCm 7.0 and `glibc >= 2.35`.
+  - AMD: ROCm 7.2.2 and `glibc >= 2.35`.
 
 The role does not validate GPU availability during provisioning. The selected accelerator must match the preconfigured vendor runtime.
 
@@ -21,7 +22,7 @@ All public variables use the `vllm_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `vllm_version` | `0.26.0` | Pinned vLLM PyPI release. |
+| `vllm_version` | `0.28.0` | Pinned vLLM PyPI release. |
 | `vllm_package` | `vllm` | PyPI package name. |
 | `vllm_uv_executable` | `uv` | Preinstalled `uv` executable. |
 | `vllm_python_version` | `3.12` | Python runtime requested from `uv`. |
