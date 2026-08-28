@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    llama_test_version: "b10107"
+    llama_test_version: "b10612"
   tasks:
     - name: Gather llama binary metadata
       ansible.builtin.stat:
@@ -27,10 +27,18 @@
       register: llama_test_cli_version
       changed_when: false
 
+    - name: Define normalized llama CLI version
+      ansible.builtin.set_fact:
+        llama_test_installed_version: >-
+          {{ (llama_test_cli_version.stdout ~ '\n' ~ llama_test_cli_version.stderr) |
+          regex_search('(?:b|build )[0-9]+') |
+          default('') |
+          regex_replace('^build ', 'b') }}
+
     - name: Assert expected llama CLI version
       ansible.builtin.assert:
         that:
-          - llama_test_version in llama_test_cli_version.stdout
+          - llama_test_installed_version == llama_test_version
 
     - name: Gather llama cache metadata
       ansible.builtin.stat:
