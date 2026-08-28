@@ -1,7 +1,7 @@
 ---
 # The official llama.app installer currently publishes feature-specific binaries.
 # Configure this pinned artifact pair after reviewing the llama-probe output.
-llama_version: "b10107"
+llama_version: "b10612"
 llama_artifact_url: ""
 llama_artifact_checksum: ""
 

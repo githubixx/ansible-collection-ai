@@ -16,7 +16,7 @@ Environment="{{ environment }}"
 {% if item.environmentfile | length > 0 %}
 EnvironmentFile="{{ item.environmentfile }}"
 {% endif %}
-ExecStart={{ llama_binary }} serve{% for argument in item.arguments %} {{ argument }}{% endfor %}
+ExecStart={{ llama_binary }} serve{% for argument in item.arguments %} {{ argument }}{% endfor %}{{ '\n' }}
 Restart=always
 RestartSec=3
 
