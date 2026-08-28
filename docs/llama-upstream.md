@@ -21,6 +21,61 @@ curl -fsSL https://huggingface.co/buckets/ggml-org/install.sh/resolve/latest
 
 At the time of this update, that endpoint returns `b10612`. GitHub can publish a newer `b...` pre-release or stable `v...` tag before the corresponding installer probe helpers and feature-specific binaries are available in the bucket. Before updating `llama_version`, confirm that `llama-probe` can download the required helper and selected artifact for every supported hardware family.
 
+## Repeatable Installer Comparison
+
+The committed [installer archive](../roles/llama/archive/install.sh) is the
+baseline for every review. It is an unmodified copy of
+`https://llama.app/install.sh` verified on 2026-08-28 with SHA-256:
+
+```text
+cccdfcbd1b55bf6003ac3037588c9f5b3b79aa0a75fe991e97bb218ccdb55e4d
+```
+
+`llama.app/install.sh` is not tracked in the public
+[`ggml-org/llama.cpp`](https://github.com/ggml-org/llama.cpp) repository. The
+repository contains the `app/` C++ sources but no production `install.sh`, so
+this archive, rather than llama.cpp Git history, preserves the role's
+installer baseline.
+
+Compare the committed baseline with the current installer from the repository
+root:
+
+```sh
+curl -fsSL https://llama.app/install.sh -o /tmp/llama-app-install.sh
+sha256sum roles/llama/archive/install.sh /tmp/llama-app-install.sh
+diff -u roles/llama/archive/install.sh /tmp/llama-app-install.sh
+curl -fsSL https://huggingface.co/buckets/ggml-org/install.sh/resolve/latest
+```
+
+If the files differ, classify the functional differences below, implement and
+verify any required role changes, then refresh the committed archive as part of
+the same pull request. Refresh the archive even when the review concludes that
+no role change is needed; this records that the new installer was deliberately
+reviewed. Do not refresh it when the review is incomplete or validation fails.
+
+```sh
+cp /tmp/llama-app-install.sh roles/llama/archive/install.sh
+sha256sum roles/llama/archive/install.sh
+git diff -- roles/llama/archive/install.sh docs/llama-upstream.md
+```
+
+Update the verification date and SHA-256 above whenever the archive is
+refreshed. The archive's Git commit then provides the precise prior baseline
+for the next review.
+
+Do not treat a changed installer hash alone as a role update. Classify every functional diff using this table:
+
+| Upstream installer change | Role impact | Files to review |
+| --- | --- | --- |
+| Bucket name, release lookup, architecture or OS mapping | Update only when the role's supported platforms or artifact base URL must change. | `defaults/main.yml`, `tasks/main.yml`, `tasks/probe.yml`, this guide |
+| Backend preference, helper name/path, feature-code output, archive format, or artifact path | Update the opt-in probe so it selects the same artifact as upstream. | `tasks/probe.yml`, `defaults/main.yml`, role README, Molecule |
+| Decompression command or artifact installation behavior | Update pinned installation tasks and test the affected distributions. | `tasks/main.yml`, Molecule |
+| `llama version` output or installer version-match rules | Update installed-version parsing and verifier assertions together. | `tasks/main.yml`, `molecule/default/verify.yml` |
+| `llama serve` startup arguments, environment variables, router API, or health endpoint behavior | Update service rendering, defaults, validation, and API verification as needed. | `templates/llama.service.j2`, `defaults/main.yml`, `tasks/main.yml`, README, Molecule |
+| User-local install paths, shell profile changes, symlink migration, `SKIP_*`, or installer-only download conveniences | No role change unless the pinned system-service contract is intentionally expanded. Record the difference here if it affects future reviews. | This guide only |
+
+The current role deliberately differs from upstream in the final category. It installs a verified binary into `/usr/local/bin` and runs it as a dedicated systemd account, rather than modifying a user's `~/.local/bin`, shell configuration, or installer cache directory.
+
 ## Intentional Differences
 
 The role uses upstream artifacts but does not reproduce the installer during normal provisioning.
