@@ -1,6 +1,6 @@
 ---
 # NVIDIA OpenShell release to install. Keep the CLI and gateway on the same release.
-openshell_version: "0.0.116"
+openshell_version: "0.1.2"
 
 # This role currently supports the x86_64 release artifacts only.
 openshell_arch: "{{ ansible_facts['architecture'] }}"
@@ -11,11 +11,14 @@ openshell_binary_mode: "0755"
 
 openshell_cli_archive: "openshell-{{ openshell_upstream_arch }}-unknown-linux-musl.tar.gz"
 openshell_gateway_archive: "openshell-gateway-{{ openshell_upstream_arch }}-unknown-linux-gnu.tar.gz"
+openshell_prover_archive: "openshell-prover-{{ openshell_upstream_arch }}-unknown-linux-musl.tar.gz"
 openshell_release_url: "https://github.com/NVIDIA/OpenShell/releases/download/v{{ openshell_version }}"
 openshell_cli_url: "{{ openshell_release_url }}/{{ openshell_cli_archive }}"
 openshell_gateway_url: "{{ openshell_release_url }}/{{ openshell_gateway_archive }}"
-openshell_cli_checksum: "sha256:4fb4476d80a1875a0b83547ec3aba999cf0a2e2d75f95f2f709b622e2103520e"
-openshell_gateway_checksum: "sha256:59c6da724eae7a00c28826f9191efbdf4fbaa5c768afdc8dea6a80a949ebcc89"
+openshell_prover_url: "{{ openshell_release_url }}/{{ openshell_prover_archive }}"
+openshell_cli_checksum: "sha256:7eb6917285331a09e3300266a0558616481a5e9927cae2612ea07c4045b6dd6f"
+openshell_gateway_checksum: "sha256:218d887845b3a020ab7535c9985eb9c666d6938f144044957f8b82b42892aadb"
+openshell_prover_checksum: "sha256:e1c9db66ae459850cab43765d7ad569effe2ac0a338c902a1b895d0cc361fbb0"
 
 # The local gateway runs as Ansible's connection user. Override when OpenShell
 # should be available to another user.
@@ -35,5 +38,6 @@ openshell_gateway_service_started: true
 # able to access the Docker socket and Docker is used by the default gateway
 # configuration.
 openshell_compute_driver: "docker"
+openshell_default_image: "nvcr.io/nvidia/base/ubuntu:24.04"
 openshell_gateway_bind_address: "127.0.0.1:17670"
 openshell_gateway_name: "openshell"
