@@ -6,7 +6,7 @@ This document records how `githubixx.ai.llama` relates to `https://llama.app/ins
 
 - Installer: <https://llama.app/install.sh>
 - Artifact bucket: <https://huggingface.co/buckets/ggml-org/install.sh>
-- Role default release identifier: `b10612`
+- Role default release identifier: `b11200`
 - Supported normal installation platform: Linux x86_64 on Ubuntu 24.04, Ubuntu 26.04, and Arch Linux.
 
 The upstream installer identifies Linux architecture, then tries CUDA, ROCm, Vulkan, and CPU in that order. It downloads small native probe helpers and chooses a feature-specific `llama-app.zst` executable. On macOS it separately selects a supported Metal binary.
@@ -19,9 +19,11 @@ Use the release identifier published by the installer artifact bucket, not a Git
 curl -fsSL https://huggingface.co/buckets/ggml-org/install.sh/resolve/latest
 ```
 
-At the time of this update, that endpoint returns `b10612`. GitHub can publish a newer `b...` pre-release or stable `v...` tag before the corresponding installer probe helpers and feature-specific binaries are available in the bucket. Before updating `llama_version`, confirm that `llama-probe` can download the required helper and selected artifact for every supported hardware family.
+On 2026-10-01, that endpoint returns `b11200`. GitHub can publish a newer `b...` pre-release or stable `v...` tag before the corresponding installer probe helpers and feature-specific binaries are available in the bucket. Before updating `llama_version`, confirm that `llama-probe` can download the required helper and selected artifact for every supported hardware family.
 
 ## Repeatable Installer Comparison
+
+The 2026-10-01 comparison found the current installer byte-for-byte identical to the archived baseline. No installer or probe-path changes were required for this pin refresh. Accelerator-specific artifacts still need acceptance testing on the intended hardware.
 
 The committed [installer archive](../roles/llama/archive/install.sh) is the
 baseline for every review. It is an unmodified copy of
