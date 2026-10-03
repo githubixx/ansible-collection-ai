@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    llama_test_version: "b10612"
+    llama_test_version: "b11200"
   tasks:
     - name: Gather llama binary metadata
       ansible.builtin.stat:
