@@ -64,6 +64,90 @@
       - info
   changed_when: false
 
+- name: Inspect existing OpenShell binaries
+  ansible.builtin.stat:
+    path: "{{ openshell_bin_directory }}/{{ item }}"
+  loop:
+    - openshell
+    - openshell-gateway
+  register: _openshell_existing_binaries
+
+- name: Query existing OpenShell binary versions
+  when: item.stat.exists
+  become: true
+  become_user: "{{ openshell_user }}"
+  ansible.builtin.command:
+    argv:
+      - "{{ item.stat.path }}"
+      - --version
+  loop: "{{ _openshell_existing_binaries.results }}"
+  register: _openshell_existing_versions
+  changed_when: false
+  failed_when: false
+
+- name: Reject unsupported OpenShell legacy upgrades
+  when: openshell_version is version('0.1.0', '>=') and not (item.skipped | default(false))
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+      - >-
+        ((item.stdout ~ item.stderr) | regex_search('[0-9]+\.[0-9]+\.[0-9]+') |
+        default('0.0.0', true)) is version('0.1.0', '>=')
+    fail_msg: >-
+      OpenShell 0.0.x or an unrecognized installation cannot be upgraded in place
+      to 0.1.x. Back up gateway data, credentials and profiles, remove legacy
+      sandboxes with the old CLI, and complete the upstream clean migration before
+      rerunning this role. No installation files have been changed.
+      See https://docs.nvidia.com/openshell/latest/upgrade/0-1-0.html
+  loop: "{{ _openshell_existing_versions.results }}"
+
+- name: Inspect OpenShell state without installed binaries
+  ansible.builtin.stat:
+    path: "{{ _openshell_user_home }}/{{ openshell_gateway_state_directory_name }}"
+  register: _openshell_existing_state
+
+- name: Reject ambiguous orphaned OpenShell state
+  when: openshell_version is version('0.1.0', '>=')
+  ansible.builtin.assert:
+    that:
+      - >-
+        not _openshell_existing_state.stat.exists or
+        (_openshell_existing_binaries.results | selectattr('stat.exists') | list | length == 2)
+    fail_msg: >-
+      Existing OpenShell state has no complete identifiable binary installation.
+      Back it up and complete the upstream clean migration before installing 0.1.x.
+
+- name: Inspect existing OpenShell configuration
+  ansible.builtin.stat:
+    path: "{{ _openshell_user_home }}/{{ openshell_gateway_config_directory_name }}/gateway.toml"
+  register: _openshell_existing_config
+
+- name: Read existing OpenShell configuration schema
+  when: _openshell_existing_config.stat.exists
+  become: true
+  become_user: "{{ openshell_user }}"
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_facts['python']['executable'] }}"
+      - -c
+      - >-
+        import sys, tomllib;
+        print(tomllib.load(open(sys.argv[1], 'rb')).get('openshell', {}).get('version', 0))
+      - "{{ _openshell_user_home }}/{{ openshell_gateway_config_directory_name }}/gateway.toml"
+  register: _openshell_existing_config_schema
+  changed_when: false
+
+- name: Reject unsupported OpenShell configuration schema
+  when:
+    - openshell_version is version('0.1.0', '>=')
+    - _openshell_existing_config.stat.exists
+  ansible.builtin.assert:
+    that:
+      - _openshell_existing_config_schema.stdout | trim == '2'
+    fail_msg: >-
+      Existing OpenShell configuration is not schema v2. Back up the configuration
+      and state, then complete the upstream 0.1.x migration before applying this role.
+
 - name: Ensure OpenShell binary directory exists
   ansible.builtin.file:
     path: "{{ openshell_bin_directory }}"
@@ -114,6 +198,19 @@
   delay: 5
   until: _openshell_gateway_download is succeeded
 
+- name: Download OpenShell prover archive
+  ansible.builtin.get_url:
+    url: "{{ openshell_prover_url }}"
+    dest: "{{ openshell_download_directory }}/{{ openshell_prover_archive }}"
+    checksum: "{{ openshell_prover_checksum }}"
+    owner: "{{ openshell_owner }}"
+    group: "{{ openshell_group }}"
+    mode: "0600"
+  register: _openshell_prover_download
+  retries: 3
+  delay: 5
+  until: _openshell_prover_download is succeeded
+
 - name: Unarchive OpenShell CLI
   ansible.builtin.unarchive:
     src: "{{ openshell_download_directory }}/{{ openshell_cli_archive }}"
@@ -127,6 +224,13 @@
     dest: "{{ openshell_download_directory }}/{{ openshell_version }}"
     remote_src: true
     creates: "{{ openshell_download_directory }}/{{ openshell_version }}/openshell-gateway"
+
+- name: Unarchive OpenShell prover
+  ansible.builtin.unarchive:
+    src: "{{ openshell_download_directory }}/{{ openshell_prover_archive }}"
+    dest: "{{ openshell_download_directory }}/{{ openshell_version }}"
+    remote_src: true
+    creates: "{{ openshell_download_directory }}/{{ openshell_version }}/openshell-prover"
 
 - name: Install OpenShell CLI binary
   ansible.builtin.copy:
@@ -142,6 +246,16 @@
   ansible.builtin.copy:
     src: "{{ openshell_download_directory }}/{{ openshell_version }}/openshell-gateway"
     dest: "{{ openshell_bin_directory }}/openshell-gateway"
+    remote_src: true
+    owner: "{{ openshell_owner }}"
+    group: "{{ openshell_group }}"
+    mode: "{{ openshell_binary_mode }}"
+  notify: Reload and restart OpenShell gateway
+
+- name: Install OpenShell prover binary
+  ansible.builtin.copy:
+    src: "{{ openshell_download_directory }}/{{ openshell_version }}/openshell-prover"
+    dest: "{{ openshell_bin_directory }}/openshell-prover"
     remote_src: true
     owner: "{{ openshell_owner }}"
     group: "{{ openshell_group }}"
