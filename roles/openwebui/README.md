@@ -9,6 +9,7 @@ Installs Open WebUI from a pinned PyPI package in a `uv`-managed Python 3.11 vir
 - systemd.
 - `uv` installed and available on the managed host PATH. The role uses it to obtain Python 3.11 when needed but does not install or update `uv`.
 - Network access to PyPI and Astral's Python distributions during installation.
+- Network access to Hugging Face when startup needs to download embedding models.
 - An environment file containing a persistent `WEBUI_SECRET_KEY`.
 
 The default SQLite deployment needs locally attached storage. Do not put its data directory on NFS, CIFS/SMB, or other network filesystems.
@@ -19,7 +20,7 @@ All public variables use the `openwebui_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `openwebui_version` | `0.11.0` | Pinned Open WebUI PyPI release. |
+| `openwebui_version` | `0.11.4` | Pinned Open WebUI PyPI release. |
 | `openwebui_package` | `open-webui[all]` | Package name and dependency profile installed with `uv`. The `all` extra includes PostgreSQL support. |
 | `openwebui_uv_executable` | `uv` | Preinstalled `uv` executable. |
 | `openwebui_python_version` | `3.11` | Python runtime requested from `uv`. |
@@ -31,11 +32,19 @@ All public variables use the `openwebui_` prefix.
 | `openwebui_host` | `127.0.0.1` | HTTP bind address. |
 | `openwebui_port` | `8080` | HTTP port. |
 | `openwebui_api_url` | `http://{{ openwebui_host }}:{{ openwebui_port }}` | Loopback readiness URL used by the role. |
+| `openwebui_api_retries` | `120` | Maximum readiness retries; first startup may download embedding models. |
+| `openwebui_api_retry_delay` | `5` | Seconds between readiness attempts; each HTTP request has a five-second timeout. |
 | `openwebui_service_environment` | Default home, PATH, cache, config, data, and SQLite database settings | Ordered systemd `Environment=` entries. |
-| `openwebui_service_environmentfile` | `/etc/openwebui/openwebui.env` | Required operator-managed systemd environment file. |
+| `openwebui_service_environmentfile` | `/etc/openwebui/openwebui.env` | Required absolute path to an operator-managed systemd environment file. |
 | `openwebui_service_arguments` | Host and port arguments | Arguments passed to `open-webui serve`. |
 | `openwebui_service_enabled` | `true` | Enable the system service. |
 | `openwebui_service_started` | `true` | Start the system service. |
+
+## Upgrades
+
+Before changing the pinned release, stop the service and take a consistent backup of the database, data directory, and environment file, including the existing `WEBUI_SECRET_KEY`. Use the database's backup tooling for PostgreSQL. Keep the secret key unchanged and review upstream schema migrations; a package downgrade alone does not roll back a migrated database. Restore the matching database and state backup when rolling back.
+
+Version 0.11.4 includes security fixes. Connections that forward browser cookies now require explicit cookie-forwarding opt-in. Personal Direct Integrations are hidden by default until an administrator enables them; existing connections continue working. Tools and functions must declare dependencies they import rather than relying on incidental packages such as `langchain-community`. Review upstream PostgreSQL knowledge-index remediation when applicable. Docker slim-image restrictions do not apply to this native `open-webui[all]` installation.
 
 ## Required environment file
 
@@ -63,7 +72,7 @@ Open WebUI uses this key to sign sessions and encrypt sensitive data. Keep it st
     - role: githubixx.ai.openwebui
 ```
 
-The role creates `/opt/openwebui/venv`, runs `openwebui.service` as `openwebui:openwebui`, and stores persistent local state under `/var/lib/openwebui/data`.
+The role creates `/opt/openwebui/venv`, runs `openwebui.service` as `openwebui:openwebui`, and stores persistent local state under `/var/lib/openwebui/data`. The generated unit keeps service arguments and restart directives on separate lines and loads the required environment file before launching the application.
 
 ## PostgreSQL
 
@@ -92,4 +101,4 @@ The default bind address is loopback-only. Changing `openwebui_host` to a non-lo
 
 ## Testing
 
-The default Molecule scenario verifies the native service on Ubuntu 24.04, Ubuntu 26.04, and Arch Linux. It supplies a test-only environment file, validates the Python 3.11 environment and pinned package, confirms systemd ownership/state, and requests the loopback UI. It does not configure a model provider, create an Open WebUI user, or provision external databases.
+The default Molecule scenario verifies the native service on Ubuntu 24.04, Ubuntu 26.04, and Arch Linux. On a clean guest it installs 0.11.0, seeds a SQLite database sentinel and a persistent data file, then upgrades to the pinned release. An interrupted fixture can resume without discarding its database or downloaded models. Verification checks retained state and the test-only secret, Python 3.11, installed package metadata and dependency consistency, systemd ownership/state, and the loopback UI. It does not configure a model provider, create an Open WebUI user, or provision external databases.
