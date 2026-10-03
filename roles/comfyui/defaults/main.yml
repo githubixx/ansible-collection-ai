@@ -1,7 +1,7 @@
 ---
 # ComfyUI release to install. Keep the application and its dependency profiles
 # compatible when updating this pinned upstream tag.
-comfyui_version: "v0.34.0"
+comfyui_version: "v0.38.0"
 comfyui_repository: "https://github.com/Comfy-Org/ComfyUI.git"
 
 # This role currently supports x86_64 Linux hosts only.
@@ -30,43 +30,36 @@ comfyui_accelerator_profiles:
     packages:
       - torch
       - torchvision
-      - torchaudio
     pip_args: ""
   nvidia_cuda:
     packages:
       - torch
       - torchvision
-      - torchaudio
     pip_args: "--extra-index-url https://download.pytorch.org/whl/cu130"
   amd_rocm:
     packages:
       - torch
       - torchvision
-      - torchaudio
     pip_args: "--index-url https://download.pytorch.org/whl/rocm7.2"
   amd_rdna3:
     packages:
       - torch
       - torchvision
-      - torchaudio
     pip_args: "--pre --index-url https://rocm.nightlies.amd.com/v2/gfx110X-all/"
   amd_rdna35:
     packages:
       - torch
       - torchvision
-      - torchaudio
     pip_args: "--pre --index-url https://rocm.nightlies.amd.com/v2/gfx1151/"
   amd_rdna4:
     packages:
       - torch
       - torchvision
-      - torchaudio
     pip_args: "--pre --index-url https://rocm.nightlies.amd.com/v2/gfx120X-all/"
   intel_xpu:
     packages:
       - torch
       - torchvision
-      - torchaudio
     pip_args: "--index-url https://download.pytorch.org/whl/xpu"
   external:
     packages: []
