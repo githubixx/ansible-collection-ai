@@ -113,8 +113,9 @@
   become_user: "{{ openwebui_user }}"
   ansible.builtin.command:
     argv:
-      - "{{ openwebui_venv_directory }}/bin/open-webui"
-      - --version
+      - "{{ openwebui_venv_directory }}/bin/python"
+      - -c
+      - "from importlib.metadata import version; print(version('open-webui'))"
   register: _openwebui_installed_version_query
   changed_when: false
   failed_when: false
@@ -122,8 +123,7 @@
 - name: Define installed Open WebUI version
   ansible.builtin.set_fact:
     _openwebui_installed_version: >-
-      {{ (_openwebui_installed_version_query.stdout |
-      regex_findall('[0-9]+\\.[0-9]+\\.[0-9]+') | first) | default('') }}
+      {{ _openwebui_installed_version_query.stdout | default('') | trim }}
 
 - name: Create Open WebUI virtual environment
   when: _openwebui_installed_version != openwebui_version
@@ -180,8 +180,9 @@
   ansible.builtin.uri:
     url: "{{ openwebui_api_url }}/"
     status_code: 200
+    timeout: 5
   register: _openwebui_api
   changed_when: false
-  retries: 12
-  delay: 5
+  retries: "{{ openwebui_api_retries }}"
+  delay: "{{ openwebui_api_retry_delay }}"
   until: _openwebui_api.status == 200

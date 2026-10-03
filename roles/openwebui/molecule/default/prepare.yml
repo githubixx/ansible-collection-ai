@@ -17,7 +17,7 @@
 
     - name: Install Python for Ansible and uv
       ansible.builtin.raw: |
-        pacman -S --noconfirm python uv
+        pacman -S --noconfirm python uv acl
       changed_when: false
 
     - name: Upgrade the whole system
@@ -38,6 +38,11 @@
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
+
+    - name: Install ACL support for unprivileged Ansible tasks
+      ansible.builtin.apt:
+        name: acl
+        state: present
 
     - name: Download uv installer
       ansible.builtin.get_url:

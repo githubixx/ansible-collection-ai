@@ -15,8 +15,8 @@ WorkingDirectory={{ openwebui_install_directory }}
 Environment="{{ environment }}"
 {% endif %}
 {% endfor %}
-EnvironmentFile="{{ openwebui_service_environmentfile }}"
-ExecStart={{ openwebui_venv_directory }}/bin/open-webui serve {% for argument in openwebui_service_arguments %}{{ argument }} {% endfor %}
+EnvironmentFile={{ openwebui_service_environmentfile }}
+ExecStart={{ openwebui_venv_directory }}/bin/open-webui serve {% for argument in openwebui_service_arguments %}{{ argument }} {% endfor %}{{ '\n' -}}
 Restart=always
 RestartSec=3
 

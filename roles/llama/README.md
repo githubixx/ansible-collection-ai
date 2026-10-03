@@ -18,7 +18,7 @@ All public variables use the `llama_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `llama_version` | `b10612` | Pinned upstream llama.app release identifier. |
+| `llama_version` | `b11200` | Pinned upstream llama.app release identifier. |
 | `llama_artifact_url` | Empty | Required URL to a selected `llama-app.zst` executable. |
 | `llama_artifact_checksum` | Empty | Required SHA-256 checksum in `sha256:<digest>` format. |
 | `llama_user` | `llama` | Shared dedicated system service account. |
@@ -67,7 +67,7 @@ Systemd does not expand `$HOME` in `Environment=` or `EnvironmentFile=` directiv
   roles:
     - role: githubixx.ai.llama
       vars:
-        llama_version: "b10612"
+        llama_version: "b11200"
         llama_artifact_url: "https://example.invalid/llama-app.zst"
         llama_artifact_checksum: "sha256:<verified-digest>"
         llama_instances:

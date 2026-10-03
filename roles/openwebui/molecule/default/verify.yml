@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    openwebui_test_version: "0.11.0"
+    openwebui_test_version: "0.11.4"
   tasks:
     - name: Query Open WebUI service user
       ansible.builtin.getent:
@@ -47,15 +47,60 @@
       become_user: openwebui
       ansible.builtin.command:
         argv:
-          - /opt/openwebui/venv/bin/open-webui
-          - --version
+          - /opt/openwebui/venv/bin/python
+          - -c
+          - "from importlib.metadata import version; print(version('open-webui'))"
       register: openwebui_test_version_query
       changed_when: false
 
     - name: Assert expected Open WebUI version is installed
       ansible.builtin.assert:
         that:
-          - openwebui_test_version in openwebui_test_version_query.stdout
+          - openwebui_test_version == openwebui_test_version_query.stdout
+
+    - name: Check Open WebUI dependency consistency
+      become: true
+      become_user: openwebui
+      ansible.builtin.command:
+        argv:
+          - uv
+          - pip
+          - check
+          - --python
+          - /opt/openwebui/venv/bin/python
+      changed_when: false
+
+    - name: Query preserved Open WebUI upgrade database sentinel
+      become: true
+      become_user: openwebui
+      ansible.builtin.command:
+        argv:
+          - /opt/openwebui/venv/bin/python
+          - -c
+          - >-
+            import sqlite3;
+            database = sqlite3.connect('file:/var/lib/openwebui/data/webui.db?mode=ro', uri=True);
+            print(database.execute('SELECT value FROM molecule_upgrade_sentinel').fetchone()[0]);
+            database.close()
+      register: openwebui_test_upgrade_database
+      changed_when: false
+
+    - name: Read preserved Open WebUI persistent file sentinel
+      ansible.builtin.slurp:
+        src: /var/lib/openwebui/data/molecule-upgrade-sentinel
+      register: openwebui_test_upgrade_file
+
+    - name: Read Open WebUI test environment file
+      ansible.builtin.slurp:
+        src: /etc/openwebui/openwebui.env
+      register: openwebui_test_environment
+
+    - name: Assert Open WebUI upgrade retained data and secret
+      ansible.builtin.assert:
+        that:
+          - openwebui_test_upgrade_database.stdout == 'preserved'
+          - (openwebui_test_upgrade_file.content | b64decode | trim) == 'preserved'
+          - "'WEBUI_SECRET_KEY=molecule-test-secret-key' in (openwebui_test_environment.content | b64decode)"
 
     - name: Gather Open WebUI data directory metadata
       ansible.builtin.stat:
@@ -77,7 +122,8 @@
       ansible.builtin.assert:
         that:
           - "'User=openwebui' in (openwebui_test_unit.content | b64decode)"
-          - "'EnvironmentFile=\"/etc/openwebui/openwebui.env\"' in (openwebui_test_unit.content | b64decode)"
+          - "'EnvironmentFile=/etc/openwebui/openwebui.env' in (openwebui_test_unit.content | b64decode)"
+          - "'\nRestart=always\n' in (openwebui_test_unit.content | b64decode)"
           - "'--host 127.0.0.1 --port 8080' in (openwebui_test_unit.content | b64decode)"
 
     - name: Gather Open WebUI service facts

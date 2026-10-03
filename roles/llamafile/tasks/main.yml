@@ -115,6 +115,33 @@
     - "{{ llamafile_download_directory }}"
     - "{{ llamafile_download_log_directory }}"
 
+- name: Gather installed llamafile artifact checksums
+  ansible.builtin.stat:
+    path: >-
+      {{ llamafile_artifact_directory ~ '/' ~
+      (item.filename | default(llamafile_catalog.get(item.id, {}).filename |
+      default(item.name ~ '.llamafile'))) }}
+    checksum_algorithm: sha256
+  register: _llamafile_artifact_checksums
+  loop: "{{ llamafile_models }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Initialize llamafile download selection
+  ansible.builtin.set_fact:
+    _llamafile_download_models: []
+
+- name: Select missing or mismatched llamafile artifacts for download
+  when: >-
+    item.stat.checksum | default('') !=
+    (item.item.checksum | default(llamafile_catalog.get(item.item.id, {}).checksum |
+    default('')) | regex_replace('^sha256:', ''))
+  ansible.builtin.set_fact:
+    _llamafile_download_models: "{{ _llamafile_download_models + [item.item] }}"
+  loop: "{{ _llamafile_artifact_checksums.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
 - name: Install resumable llamafile download scripts
   ansible.builtin.template:
     src: download-llamafile.sh.j2
@@ -122,7 +149,7 @@
     owner: root
     group: root
     mode: "0700"
-  loop: "{{ llamafile_models }}"
+  loop: "{{ _llamafile_download_models }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -134,7 +161,7 @@
   poll: 0
   register: _llamafile_download_jobs
   changed_when: false
-  loop: "{{ llamafile_models }}"
+  loop: "{{ _llamafile_download_models }}"
   loop_control:
     label: "{{ item.name }}"
 

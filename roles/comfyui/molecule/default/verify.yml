@@ -4,8 +4,19 @@
   become: true
   gather_facts: true
   vars:
-    comfyui_test_version: "v0.34.0"
+    comfyui_test_version: "v0.38.0"
   tasks:
+    - name: Check ComfyUI dependency consistency
+      become: true
+      become_user: comfyui
+      ansible.builtin.command:
+        argv:
+          - /opt/comfyui/venv/bin/python
+          - -m
+          - pip
+          - check
+      changed_when: false
+
     - name: Query ComfyUI service user
       ansible.builtin.getent:
         database: passwd
@@ -76,12 +87,16 @@
           - ansible_facts['services']['comfyui.service']['state'] == 'running'
           - ansible_facts['services']['comfyui.service']['status'] == 'enabled'
 
-    - name: Query ComfyUI system statistics
+    - name: Wait for ComfyUI system statistics
       ansible.builtin.uri:
         url: http://127.0.0.1:8188/system_stats
         status_code: 200
+        timeout: 5
       register: comfyui_test_system_stats
       changed_when: false
+      retries: 30
+      delay: 2
+      until: comfyui_test_system_stats.status == 200
 
     - name: Assert ComfyUI system statistics contain device information
       ansible.builtin.assert:

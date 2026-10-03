@@ -7,10 +7,12 @@ This document records how `githubixx.ai.llamafile` relates to Mozilla's pre-buil
 - Pre-built catalog: <https://docs.mozilla.ai/llamafile/getting-started/pre-built-llamafiles>
 - Catalog repository: <https://huggingface.co/mozilla-ai/llamafile_0.10>
 - Supported upstream series: `0.10.*`
-- Role catalog revision: `132715bf3442e0e5ef8bd532a9ea9c5eb10030bd`
+- Role catalog revision: `8c9e234f2068fa6a6f3ed171926b367e65cef160`
 - Supported role platform: Linux x86_64 on Ubuntu 24.04, Ubuntu 26.04, and Arch Linux.
 
 The upstream artifacts are portable APE/MBR-format executables. They can run from an interactive shell, but systemd cannot execute them directly. The role uses a shell wrapper for server-mode `ExecStart` commands and an executable shell launcher for combined mode.
+
+The 2026-10-01 refresh retains the twelve existing model IDs and verifies each filename and SHA-256 against LFS metadata at the immutable revision above. Eleven bundles changed; `LFM2-24B-A2B-Q5_K_M.llamafile` retained its checksum. No additional catalog models were added.
 
 ## Intentional Differences
 

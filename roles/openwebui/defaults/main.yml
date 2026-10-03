@@ -1,7 +1,7 @@
 ---
 # Open WebUI package release to install. Keep the package name and version
 # synchronized when updating this pinned upstream release.
-openwebui_version: "0.11.0"
+openwebui_version: "0.11.4"
 openwebui_package: "open-webui[all]"
 
 # This role currently supports x86_64 Linux hosts only.
@@ -25,6 +25,8 @@ openwebui_service_name: "openwebui.service"
 openwebui_host: "127.0.0.1"
 openwebui_port: 8080
 openwebui_api_url: "http://{{ openwebui_host }}:{{ openwebui_port }}"
+openwebui_api_retries: 120
+openwebui_api_retry_delay: 5
 openwebui_service_environment:
   - "HOME={{ openwebui_home }}"
   - "PATH={{ openwebui_venv_directory }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"

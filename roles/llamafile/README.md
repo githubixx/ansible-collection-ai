@@ -17,6 +17,8 @@ The role does not install GPU drivers, CUDA, ROCm/HIP, Vulkan, firewall rules, o
 
 Set `llamafile_models` to the pre-built model IDs from `llamafile_catalog`. Every catalog entry uses an immutable Hugging Face revision URL and its LFS SHA-256 value. An entry may set `url`, `checksum`, and optionally `filename` to use a mirror.
 
+The twelve existing 0.10.* catalog entries are pinned to revision `8c9e234f2068fa6a6f3ed171926b367e65cef160`, reviewed on 2026-10-01. No models or newer series were added.
+
 ```yaml
 - name: Install selected llamafiles
   hosts: inference_hosts
@@ -72,6 +74,8 @@ The launcher preserves standard input/output, applies the selected model's GPU a
 ## Large downloads and retries
 
 Artifacts are root-owned under `/opt/llamafile/models`. Each transfer runs asynchronously, uses `curl --continue-at -`, follows redirects, retries transient failures, verifies SHA-256, and installs atomically only after verification.
+
+Each converge checks the installed artifacts' SHA-256 values first. Temporary download scripts are created only for missing or mismatched artifacts and removed after successful transfers, so matching installations require no download-script changes.
 
 - Partial files: `/var/lib/llamafile/downloads/<name>.part`
 - Transfer logs: `/var/lib/llamafile/download-logs/<name>.log`

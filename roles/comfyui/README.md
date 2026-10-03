@@ -18,7 +18,7 @@ All public variables use the `comfyui_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `comfyui_version` | `v0.34.0` | Pinned upstream ComfyUI Git tag. |
+| `comfyui_version` | `v0.38.0` | Pinned upstream ComfyUI Git tag. |
 | `comfyui_repository` | ComfyUI upstream repository | Git repository to clone. |
 | `comfyui_accelerator` | `cpu` | Explicit PyTorch resource profile. |
 | `comfyui_pytorch_packages` | Profile packages | PyTorch packages to install into the virtual environment. Override for the `external` profile. |
@@ -54,6 +54,8 @@ Set `comfyui_accelerator` explicitly; the role never probes PCI devices or choos
 The `external` profile supports Ascend NPUs, Cambricon MLUs, Iluvatar Corex, and similar vendor runtimes after the operator has installed the vendor prerequisites. Set `comfyui_pytorch_packages` and, if needed, `comfyui_pytorch_pip_args` to the vendor-supported values. The role rejects an `external` profile with no packages configured.
 
 ## Example
+
+Built-in profiles install `torch` and `torchvision`. ComfyUI v0.38.0 no longer requires `torchaudio`; extensions that need it must declare it explicitly. Existing operator-installed packages are not removed.
 
 ```yaml
 - name: Install ComfyUI with NVIDIA acceleration

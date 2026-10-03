@@ -4,10 +4,10 @@
   become: true
   gather_facts: true
   vars:
-    llama_version: "b10612"
+    llama_version: "b11200"
     llama_artifact_url: >-
-      https://huggingface.co/buckets/ggml-org/install.sh/resolve/b10612/x86_64/linux/cpu/ylkkk/llama-app.zst
-    llama_artifact_checksum: "sha256:27b4152996d088103fee64362da6defa72a0d898f8b6282f921b9641027350e7"
+      https://huggingface.co/buckets/ggml-org/install.sh/resolve/b11200/x86_64/linux/cpu/ylkkk/llama-app.zst
+    llama_artifact_checksum: "sha256:dd7042165a313532c5fdbc0cc06e3d4dc41874d5a326b9026075cb2522064dc9"
   tasks:
     - name: Include llama
       ansible.builtin.include_role:

@@ -6,8 +6,8 @@ This document records how `githubixx.ai.ollama` relates to Ollama's upstream ins
 
 - Repository: <https://github.com/ollama/ollama>
 - Installer: <https://raw.githubusercontent.com/ollama/ollama/main/scripts/install.sh>
-- Last reviewed release: `v0.33.1`
-- Role default: `ollama_version: "0.33.1"`
+- Last reviewed release: `v0.35.0`
+- Role default: `ollama_version: "0.35.0"`
 - Supported role platform: Linux x86_64 on Ubuntu 24.04, Ubuntu 26.04, and Archlinux.
 
 The role downloads `ollama-linux-amd64.tar.zst` directly from GitHub Releases. The checksum in [the role defaults](../roles/ollama/defaults/main.yml) must match the configured release.

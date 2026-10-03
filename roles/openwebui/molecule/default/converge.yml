@@ -20,6 +20,55 @@
         group: root
         mode: "0640"
   tasks:
+    - name: Inspect completed Open WebUI upgrade fixture
+      ansible.builtin.stat:
+        path: /var/lib/openwebui/data/molecule-upgrade-sentinel
+      register: openwebui_test_existing_fixture
+
+    - name: Prepare previous-release Open WebUI upgrade fixture
+      when: not openwebui_test_existing_fixture.stat.exists
+      block:
+        - name: Install previous Open WebUI release
+          ansible.builtin.include_role:
+            name: openwebui
+          vars:
+            openwebui_version: "0.11.0"
+
+        - name: Wait for previous Open WebUI database initialization
+          ansible.builtin.uri:
+            url: http://127.0.0.1:8080/
+            status_code: 200
+          register: openwebui_test_previous_ui
+          retries: 30
+          delay: 5
+          until: openwebui_test_previous_ui is succeeded
+
+        - name: Seed Open WebUI upgrade database sentinel
+          become: true
+          become_user: openwebui
+          ansible.builtin.command:
+            argv:
+              - /opt/openwebui/venv/bin/python
+              - -c
+              - >-
+                import sqlite3;
+                database = sqlite3.connect('/var/lib/openwebui/data/webui.db');
+                database.execute('CREATE TABLE IF NOT EXISTS molecule_upgrade_sentinel (value TEXT)');
+                database.execute(
+                "INSERT INTO molecule_upgrade_sentinel SELECT 'preserved' "
+                "WHERE NOT EXISTS (SELECT 1 FROM molecule_upgrade_sentinel)"
+                );
+                database.commit(); database.close()
+          changed_when: true
+
+        - name: Seed Open WebUI persistent file sentinel
+          ansible.builtin.copy:
+            content: "preserved\n"
+            dest: /var/lib/openwebui/data/molecule-upgrade-sentinel
+            owner: openwebui
+            group: openwebui
+            mode: "0600"
+
     - name: Include Open WebUI
       ansible.builtin.include_role:
         name: openwebui

@@ -9,6 +9,7 @@ Type=exec
 Environment=OPENSHELL_LOCAL_TLS_DIR=%h/{{ openshell_gateway_state_directory_name }}/tls
 EnvironmentFile=-%E/openshell/gateway.env
 ExecStartPre=/usr/bin/mkdir -p %E/openshell
+ExecStartPre={{ openshell_bin_directory }}/openshell-gateway config preflight
 ExecStartPre={{ openshell_bin_directory }}/openshell-gateway generate-certs --output-dir ${OPENSHELL_LOCAL_TLS_DIR} --server-san host.openshell.internal
 ExecStart={{ openshell_bin_directory }}/openshell-gateway
 Restart=on-failure
