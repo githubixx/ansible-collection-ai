@@ -35,6 +35,73 @@
         that:
           - "'docker' in openshell_molecule_user_groups.stdout.split()"
 
+    - name: Check whether OpenShell is already installed
+      ansible.builtin.stat:
+        path: /home/vagrant/.local/bin/openshell
+      register: openshell_molecule_installed
+
+    - name: Test legacy OpenShell upgrade protection
+      when: not openshell_molecule_installed.stat.exists
+      block:
+        - name: Create disposable legacy installation directory
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: openshell-legacy-
+          register: openshell_molecule_legacy
+
+        - name: Make legacy test directory accessible to the target user
+          ansible.builtin.file:
+            path: "{{ openshell_molecule_legacy.path }}"
+            owner: "{{ openshell_molecule_user }}"
+            mode: "0750"
+
+        - name: Seed a legacy OpenShell CLI
+          ansible.builtin.copy:
+            content: "#!/bin/sh\nprintf '%s\\n' 'openshell 0.0.116'\n"
+            dest: "{{ openshell_molecule_legacy.path }}/openshell"
+            owner: "{{ openshell_molecule_user }}"
+            mode: "0755"
+          register: openshell_molecule_legacy_binary
+
+        - name: Attempt an unsupported legacy upgrade
+          block:
+            - name: Include OpenShell against the legacy fixture
+              ansible.builtin.include_role:
+                name: openshell
+              vars:
+                openshell_user: "{{ openshell_molecule_user }}"
+                openshell_bin_directory: "{{ openshell_molecule_legacy.path }}"
+                openshell_download_directory: "{{ openshell_molecule_legacy.path }}/downloads"
+
+            - name: Fail if the legacy upgrade was accepted
+              ansible.builtin.fail:
+                msg: The role accepted an unsupported legacy installation.
+          rescue:
+            - name: Assert the migration guard rejected the legacy installation
+              ansible.builtin.assert:
+                that:
+                  - ansible_failed_task.name == 'Reject unsupported OpenShell legacy upgrades'
+
+        - name: Inspect legacy files after rejection
+          ansible.builtin.stat:
+            path: "{{ item }}"
+          loop:
+            - "{{ openshell_molecule_legacy.path }}/openshell"
+            - "{{ openshell_molecule_legacy.path }}/downloads"
+          register: openshell_molecule_legacy_after
+
+        - name: Assert the guard preserved the installation before downloads
+          ansible.builtin.assert:
+            that:
+              - openshell_molecule_legacy_after.results[0].stat.checksum == openshell_molecule_legacy_binary.checksum
+              - not openshell_molecule_legacy_after.results[1].stat.exists
+      always:
+        - name: Remove the disposable legacy fixture
+          when: openshell_molecule_legacy.path is defined
+          ansible.builtin.file:
+            path: "{{ openshell_molecule_legacy.path }}"
+            state: absent
+
     - name: Include OpenShell
       ansible.builtin.include_role:
         name: openshell

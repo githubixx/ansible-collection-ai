@@ -4,6 +4,7 @@
   become: true
   gather_facts: true
   vars:
+    openshell_test_version: "0.1.2"
     openshell_test_user: "{{ ansible_user | default(ansible_facts['user_id']) }}"
   tasks:
     - name: Query OpenShell test user
@@ -23,6 +24,7 @@
       loop:
         - "{{ openshell_test_bin_directory }}/openshell"
         - "{{ openshell_test_bin_directory }}/openshell-gateway"
+        - "{{ openshell_test_bin_directory }}/openshell-prover"
       register: openshell_test_binaries
 
     - name: Assert OpenShell binaries are installed
@@ -34,12 +36,23 @@
           - item.stat.mode == '0755'
       loop: "{{ openshell_test_binaries.results }}"
 
-    - name: Verify OpenShell CLI version command succeeds
+    - name: Query OpenShell binary versions
       ansible.builtin.command:
         argv:
-          - "{{ openshell_test_bin_directory }}/openshell"
+          - "{{ openshell_test_bin_directory }}/{{ item }}"
           - --version
+      loop:
+        - openshell
+        - openshell-gateway
+        - openshell-prover
+      register: openshell_test_versions
       changed_when: false
+
+    - name: Assert expected OpenShell binary versions
+      ansible.builtin.assert:
+        that:
+          - "openshell_test_version in (item.stdout ~ item.stderr)"
+      loop: "{{ openshell_test_versions.results }}"
 
     - name: Gather OpenShell configuration metadata
       ansible.builtin.stat:
