@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    vllm_test_version: "0.28.0"
+    vllm_test_version: "0.30.0"
     vllm_test_accelerator: "{{ 'amd_rocm' if 'amd_rocm' in group_names else 'nvidia_cuda' }}"
   tasks:
     - name: Query vLLM service user
@@ -60,6 +60,53 @@
       ansible.builtin.assert:
         that:
           - vllm_test_version in vllm_test_version_query.stdout
+
+    - name: Check vLLM dependency consistency
+      become: true
+      become_user: vllm
+      ansible.builtin.command:
+        argv:
+          - uv
+          - pip
+          - check
+          - --python
+          - /opt/vllm/venv/bin/python
+      changed_when: false
+
+    - name: Query PyTorch backend metadata without loading GPU libraries
+      become: true
+      become_user: vllm
+      ansible.builtin.command:
+        argv:
+          - /opt/vllm/venv/bin/python
+          - -c
+          - >-
+            import ast, json;
+            from importlib.metadata import distribution;
+            version_file = distribution('torch').locate_file('torch/version.py');
+            assignments = ast.parse(version_file.read_text()).body;
+            backend = {
+            target.id: ast.literal_eval(assignment.value)
+            for assignment in assignments
+            if isinstance(assignment, (ast.Assign, ast.AnnAssign))
+            for target in (assignment.targets if isinstance(assignment, ast.Assign) else [assignment.target])
+            if isinstance(target, ast.Name) and target.id in ('hip', 'cuda')
+            };
+            print(json.dumps(backend))
+      register: vllm_test_torch_backend
+      changed_when: false
+
+    - name: Assert the AMD profile installed ROCm wheels
+      when: vllm_test_accelerator == 'amd_rocm'
+      ansible.builtin.assert:
+        that:
+          - "'+rocm723' in vllm_test_version_query.stdout"
+          - (vllm_test_torch_backend.stdout | from_json).hip | default('', true) | length > 0
+          - (vllm_test_torch_backend.stdout | from_json).cuda is none
+        fail_msg: >-
+          Expected vLLM ROCm 7.2.3 and HIP-enabled PyTorch with no CUDA backend.
+          vLLM version: {{ vllm_test_version_query.stdout }};
+          PyTorch backend metadata: {{ vllm_test_torch_backend.stdout }}.
 
     - name: Read vLLM accelerator marker
       ansible.builtin.slurp:
