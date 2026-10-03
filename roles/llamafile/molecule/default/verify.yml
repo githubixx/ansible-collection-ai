@@ -5,7 +5,7 @@
   gather_facts: true
   vars:
     llamafile_test_artifact: "/opt/llamafile/models/Qwen3.5-0.8B-Q8_0.llamafile"
-    llamafile_test_checksum: "ec7c3ab7903accb1b4d890cfd1fc670fabc642dcb4896735bd69d46b2629408d"
+    llamafile_test_checksum: "d97ed2e8729437dd3d044405ba5035f352d253a0987f19e610eb538b0951a805"
   tasks:
     - name: Gather llamafile model metadata
       ansible.builtin.stat:
@@ -53,6 +53,16 @@
       ansible.builtin.assert:
         that:
           - not llamafile_test_partial_download.stat.exists
+
+    - name: Gather completed llamafile download script metadata
+      ansible.builtin.stat:
+        path: /var/lib/llamafile/downloads/qwen35-08b.download
+      register: llamafile_test_download_script
+
+    - name: Assert completed download has no temporary script
+      ansible.builtin.assert:
+        that:
+          - not llamafile_test_download_script.stat.exists
 
     - name: Gather llamafile service facts
       ansible.builtin.service_facts:

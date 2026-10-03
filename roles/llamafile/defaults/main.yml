@@ -1,7 +1,7 @@
 ---
 # Only upstream pre-built llamafiles from the 0.10.* series are supported.
 # Immutable Hugging Face revision used by all built-in catalog download URLs.
-llamafile_catalog_revision: "132715bf3442e0e5ef8bd532a9ea9c5eb10030bd"
+llamafile_catalog_revision: "8c9e234f2068fa6a6f3ed171926b367e65cef160"
 # Base URL for the pinned upstream catalog revision; override for a catalog mirror.
 llamafile_catalog_base_url: >-
   https://huggingface.co/mozilla-ai/llamafile_0.10/resolve/{{ llamafile_catalog_revision }}
@@ -16,57 +16,57 @@ llamafile_catalog:
     # Pinned artifact download URL.
     url: "{{ llamafile_catalog_base_url }}/Qwen3.5-0.8B-Q8_0.llamafile"
     # Expected artifact SHA-256, prefixed for Ansible checksum compatibility.
-    checksum: "sha256:ec7c3ab7903accb1b4d890cfd1fc670fabc642dcb4896735bd69d46b2629408d"
+    checksum: "sha256:d97ed2e8729437dd3d044405ba5035f352d253a0987f19e610eb538b0951a805"
   # Qwen3.5 2B Q8_0.
   qwen35-2b-q8-0:
     filename: "Qwen3.5-2B-Q8_0.llamafile"
     url: "{{ llamafile_catalog_base_url }}/Qwen3.5-2B-Q8_0.llamafile"
-    checksum: "sha256:124fc4590c459391083fcb67e5bb24743f450be9ff2a9e8a4ec89b728e679285"
+    checksum: "sha256:e4ac37318fffd222d802373a5e0c2ec7f78aa3af3744f01eec75a3750e130386"
   # Ministral 3 3B Instruct, Q4_K_M quantization.
   ministral-3-3b-q4-k-m:
     filename: "Ministral-3-3B-Instruct-2512-Q4_K_M.llamafile"
     url: "{{ llamafile_catalog_base_url }}/Ministral-3-3B-Instruct-2512-Q4_K_M.llamafile"
-    checksum: "sha256:2206660b4ce73e04b87fedfb5ebd1591b7da02c01c55998340f3540817d58be3"
+    checksum: "sha256:5bf7bbb853ee61912dbe82bf7d7638ed43c9fda8f62a8515abd83e66dbf1881f"
   # Qwen3.5 4B, Q5_K_S quantization.
   qwen35-4b-q5-k-s:
     filename: "Qwen3.5-4B-Q5_K_S.llamafile"
     url: "{{ llamafile_catalog_base_url }}/Qwen3.5-4B-Q5_K_S.llamafile"
-    checksum: "sha256:7b3d0a167824b0d9a9e44376521deba49dfadc0048457f4ce9b9b201d513ffa1"
+    checksum: "sha256:5eb74a4b498a41a78e52ada02e74269048bb35b66b6710ba0b63a606013f4831"
   # LLaVA v1.6 Mistral 7B multimodal model, Q4_K_M quantization.
   llava-v16-mistral-7b-q4-k-m:
     filename: "llava-v1.6-mistral-7b-Q4_K_M.llamafile"
     url: "{{ llamafile_catalog_base_url }}/llava-v1.6-mistral-7b-Q4_K_M.llamafile"
-    checksum: "sha256:9643ee12280bcaac3beeeb014f68b19ea40e4d1d6060b4a63496196f03bbbd70"
+    checksum: "sha256:0dab378bc6cb59d8318e585b38ab31ae302b9fc34304a0fb21264e5e4232ad48"
   # Apertus 8B Instruct.
   apertus-8b:
     filename: "Apertus-8B-Instruct-2509.llamafile"
     url: "{{ llamafile_catalog_base_url }}/Apertus-8B-Instruct-2509.llamafile"
-    checksum: "sha256:580f69e028c9192bf9dffc6840b1cc89619a8db243a8a1d4f63f2045d91c6083"
+    checksum: "sha256:58ff96e92f0aa700f18fbe0d595be993f580d320167a02e6c81a58c25650a9db"
   # Qwen3.5 9B, Q5_K_S quantization.
   qwen35-9b-q5-k-s:
     filename: "Qwen3.5-9B-Q5_K_S.llamafile"
     url: "{{ llamafile_catalog_base_url }}/Qwen3.5-9B-Q5_K_S.llamafile"
-    checksum: "sha256:408a480c4110b3d9b41547b3a51760e9df89586751735af0d20a5440e50495bd"
+    checksum: "sha256:2c4414eb9db3bcac4138c5cb3820ab45b939aa0551c506af64e86a1e3791c34c"
   # Ministral 3 3B Instruct in BF16 precision.
   ministral-3-3b-bf16:
     filename: "Ministral-3-3B-Instruct-2512-BF16.llamafile"
     url: "{{ llamafile_catalog_base_url }}/Ministral-3-3B-Instruct-2512-BF16.llamafile"
-    checksum: "sha256:be5318effee8c109cb549418c0942e499c43160d13264b27b3eb35fa0c84bfc3"
+    checksum: "sha256:216f048ea09016bec67d062a539fd59860412e5b755c1d1db32497b49b662dc5"
   # LLaVA v1.6 Mistral 7B multimodal model, Q8_0 quantization.
   llava-v16-mistral-7b-q8-0:
     filename: "llava-v1.6-mistral-7b-Q8_0.llamafile"
     url: "{{ llamafile_catalog_base_url }}/llava-v1.6-mistral-7b-Q8_0.llamafile"
-    checksum: "sha256:c6b345069ec6f0f448344df1fcb050da6c09801b62d39402af9cc83b8169418d"
+    checksum: "sha256:b3be932aa814e413de276a013dcadd8edf78031680b4ca3b705b66e01fdeb937"
   # OpenAI gpt-oss 20B using MXFP4 quantization.
   gpt-oss-20b-mxfp4:
     filename: "gpt-oss-20b-mxfp4.llamafile"
     url: "{{ llamafile_catalog_base_url }}/gpt-oss-20b-mxfp4.llamafile"
-    checksum: "sha256:515c280d0d3e873333dc74d8306abb9f0ba12c7846ea2d6882b00c7458c0951d"
+    checksum: "sha256:f2773f793d04d7df97241518cf832cdbe2168d7586d2d67ae686185fc0cd230a"
   # OpenAI gpt-oss 20B using Q5_K_S quantization.
   gpt-oss-20b-q5-k-s:
     filename: "gpt-oss-20b-Q5_K_S.llamafile"
     url: "{{ llamafile_catalog_base_url }}/gpt-oss-20b-Q5_K_S.llamafile"
-    checksum: "sha256:e64534b33a8addd02dd82602963b92a2baa17c720e71540ad5c0a527dab8f247"
+    checksum: "sha256:be16430d2e8bd30f74a40b353210549e5ab9db542f012b89da4968a281444e93"
   # LiquidAI LFM2 24B A2B, Q5_K_M quantization.
   lfm2-24b-a2b-q5-k-m:
     filename: "LFM2-24B-A2B-Q5_K_M.llamafile"
