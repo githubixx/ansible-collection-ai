@@ -1,7 +1,7 @@
 ---
 # vLLM package release to install. Keep the package name and version
 # synchronized when updating this pinned upstream release.
-vllm_version: "0.28.0"
+vllm_version: "0.30.0"
 vllm_package: "vllm"
 
 # This role currently supports x86_64 Linux hosts only.
@@ -30,7 +30,7 @@ vllm_accelerator_profiles:
   amd_rocm:
     install_arguments:
       - "--extra-index-url"
-      - "https://wheels.vllm.ai/rocm/0.28.0/rocm722"
+      - "https://wheels.vllm.ai/rocm/0.30.0/rocm723"
 vllm_install_arguments: "{{ vllm_accelerator_profiles[vllm_accelerator]['install_arguments'] }}"
 
 vllm_service_name: "vllm.service"
