@@ -18,7 +18,7 @@ All public variables use the `llama_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `llama_version` | `b11200` | Pinned upstream llama.app release identifier. |
+| `llama_version` | `b12110` | Pinned upstream llama.app release identifier, corresponding to llama.cpp v0.9.0. |
 | `llama_artifact_url` | Empty | Required URL to a selected `llama-app.zst` executable. |
 | `llama_artifact_checksum` | Empty | Required SHA-256 checksum in `sha256:<digest>` format. |
 | `llama_user` | `llama` | Shared dedicated system service account. |
@@ -29,6 +29,8 @@ All public variables use the `llama_` prefix.
 | `llama_probe_version` | `{{ llama_version }}` | Version inspected by the opt-in `llama-probe` preflight. |
 
 Override `llama_version`, `llama_artifact_url`, and `llama_artifact_checksum` together. The role intentionally leaves the artifact values empty: llama.app selects a CPU-feature-specific executable, and one host's binary is not necessarily runnable on another host.
+
+When upgrading an existing installation to the new default, rerun the preflight with `llama_probe_version: "b12110"` and update the artifact URL and checksum together before applying the role. An older pinned artifact does not automatically follow the new default version.
 
 ## Artifact preflight
 
@@ -67,7 +69,7 @@ Systemd does not expand `$HOME` in `Environment=` or `EnvironmentFile=` directiv
   roles:
     - role: githubixx.ai.llama
       vars:
-        llama_version: "b11200"
+        llama_version: "b12110"
         llama_artifact_url: "https://example.invalid/llama-app.zst"
         llama_artifact_checksum: "sha256:<verified-digest>"
         llama_instances:
@@ -108,6 +110,6 @@ The role checks loopback endpoints only. It uses `/health` for `single_model` in
 
 ## Testing
 
-The default Molecule scenario covers Ubuntu 24.04, Ubuntu 26.04, and Arch Linux. It passes an explicit test artifact through scenario variables, then verifies the binary, service account, shared cache, enabled service, and loopback router API.
+The default Molecule scenario covers Ubuntu 24.04, Ubuntu 26.04, and Arch Linux. It passes an explicit CPU test artifact through scenario variables, then verifies the binary, service account, shared cache, enabled service, loopback router API, and host-specific artifact preflight. Accelerator-specific artifacts still require testing on the intended hardware.
 
 See the [upstream maintenance guide](../../docs/llama-upstream.md) when reviewing a new llama.app release or changes to its installer.
