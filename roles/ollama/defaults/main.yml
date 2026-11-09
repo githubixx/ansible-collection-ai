@@ -1,6 +1,6 @@
 ---
 # Ollama release to install. Keep the archive URL and checksum synchronized.
-ollama_version: "0.35.0"
+ollama_version: "0.40.15"
 
 # This role currently supports the x86_64 release artifact only.
 ollama_arch: "{{ ansible_facts['architecture'] }}"
@@ -15,7 +15,7 @@ ollama_binary_mode: "0755"
 ollama_archive: "ollama-linux-{{ ollama_upstream_arch }}.tar.zst"
 ollama_release_url: "https://github.com/ollama/ollama/releases/download/v{{ ollama_version }}"
 ollama_archive_url: "{{ ollama_release_url }}/{{ ollama_archive }}"
-ollama_archive_checksum: "sha256:1c114a6b220c5efca2ef2b1e5f01d1e535e26f6cd6d1678c8489325d2835e525"
+ollama_archive_checksum: "sha256:628c018404a4206493efd38e46251c154ede5141b8b8dc85c659b3b027c47379"
 
 ollama_user: "ollama"
 ollama_group: "ollama"

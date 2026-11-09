@@ -9,7 +9,7 @@ Installs the Ollama service from a pinned, SHA-256-verified GitHub release archi
 - systemd.
 - Network access to GitHub Releases during installation.
 
-Ollama uses already-installed supported NVIDIA or AMD acceleration when available. This role does not install, configure, or validate GPU drivers. CPU inference is supported.
+Ollama can use supported accelerators when their drivers and required runtime libraries are available. This role installs only the base archive; it does not install, configure, or validate GPU drivers or the separate AMD ROCm archive. CPU inference is supported.
 
 ## Role variables
 
@@ -17,7 +17,7 @@ All public variables use the `ollama_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `ollama_version` | `0.35.0` | Pinned Ollama release. |
+| `ollama_version` | `0.40.15` | Pinned Ollama release. |
 | `ollama_user` | `ollama` | Dedicated system service account. |
 | `ollama_host` | `127.0.0.1:11434` | API bind address. |
 | `ollama_api_url` | `http://{{ ollama_host }}` | Loopback API URL for role readiness checks. |
@@ -27,7 +27,13 @@ All public variables use the `ollama_` prefix.
 | `ollama_service_enabled` | `true` | Enable the system service. |
 | `ollama_service_started` | `true` | Start the system service. |
 
-The default checksum corresponds to the v0.35.0 Linux x86_64 base archive. Override the version, archive URL, and checksum together only after verifying the upstream release checksum.
+The default checksum corresponds to the v0.40.15 Linux x86_64 base archive. Override the version, archive URL, and checksum together only after verifying the upstream release checksum.
+
+## Upgrading
+
+The role replaces `/usr/local/lib/ollama` when the installed version changes, while preserving the model state directory. Any separately installed ROCm or other custom runtime libraries in that directory must be reinstalled after an upgrade; the role does not manage them. Verify accelerator availability after upgrading.
+
+Ollama 0.40 introduced background upgrades for some existing models and retains original copies as backups, which can increase disk usage. Upstream paused background upgrades in 0.40.3; see the [0.40.2](https://github.com/ollama/ollama/releases/tag/v0.40.2) and [0.40.3](https://github.com/ollama/ollama/releases/tag/v0.40.3) release notes before managing existing backups or downgrading.
 
 See the [upstream maintenance guide](../../docs/ollama-upstream.md) when reviewing a new Ollama release or changes to upstream `install.sh`.
 
@@ -95,4 +101,4 @@ The default API bind address is loopback-only. Setting `ollama_host` to a non-lo
 
 ## Testing
 
-The default Molecule scenario uses Vagrant with libvirt and verifies Ubuntu 24.04, Ubuntu 26.04, and Archlinux. It pulls and generates with `gemma3:270m`; each instance has 4096 MiB of memory and a 24 GiB root volume to make CPU inference reliable.
+The default Molecule scenario uses Vagrant with libvirt and verifies a fresh installation on Ubuntu 24.04, Ubuntu 26.04, and Archlinux, including client/server versions and idempotence. It pulls and generates with `gemma3:270m`; each instance has 4096 MiB of memory and a 24 GiB virtual disk to make CPU inference reliable.
