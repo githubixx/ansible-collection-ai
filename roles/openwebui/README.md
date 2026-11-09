@@ -20,7 +20,7 @@ All public variables use the `openwebui_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `openwebui_version` | `0.11.4` | Pinned Open WebUI PyPI release. |
+| `openwebui_version` | `0.13.3` | Pinned Open WebUI PyPI release. |
 | `openwebui_package` | `open-webui[all]` | Package name and dependency profile installed with `uv`. The `all` extra includes PostgreSQL support. |
 | `openwebui_uv_executable` | `uv` | Preinstalled `uv` executable. |
 | `openwebui_python_version` | `3.11` | Python runtime requested from `uv`. |
@@ -45,6 +45,8 @@ All public variables use the `openwebui_` prefix.
 Before changing the pinned release, stop the service and take a consistent backup of the database, data directory, and environment file, including the existing `WEBUI_SECRET_KEY`. Use the database's backup tooling for PostgreSQL. Keep the secret key unchanged and review upstream schema migrations; a package downgrade alone does not roll back a migrated database. Restore the matching database and state backup when rolling back.
 
 Version 0.11.4 includes security fixes. Connections that forward browser cookies now require explicit cookie-forwarding opt-in. Personal Direct Integrations are hidden by default until an administrator enables them; existing connections continue working. Tools and functions must declare dependencies they import rather than relying on incidental packages such as `langchain-community`. Review upstream PostgreSQL knowledge-index remediation when applicable. Docker slim-image restrictions do not apply to this native `open-webui[all]` installation.
+
+The 0.12 and 0.13 releases include database migrations. For multi-worker, multi-server, or load-balanced deployments, upstream requires all instances to be updated together: rolling updates are not supported because schemas are incompatible. If using `VECTOR_DB=valkey` with a manually installed `valkey-glide-sync`, upgrade it to at least 2.5.2 before starting the new release. For PostgreSQL with `DATABASE_SCHEMA`, the schema must exist, and existing tables must have migration history. See the [upstream releases](https://github.com/open-webui/open-webui/releases) for details.
 
 ## Required environment file
 
@@ -101,4 +103,4 @@ The default bind address is loopback-only. Changing `openwebui_host` to a non-lo
 
 ## Testing
 
-The default Molecule scenario verifies the native service on Ubuntu 24.04, Ubuntu 26.04, and Arch Linux. On a clean guest it installs 0.11.0, seeds a SQLite database sentinel and a persistent data file, then upgrades to the pinned release. An interrupted fixture can resume without discarding its database or downloaded models. Verification checks retained state and the test-only secret, Python 3.11, installed package metadata and dependency consistency, systemd ownership/state, and the loopback UI. It does not configure a model provider, create an Open WebUI user, or provision external databases.
+The default Molecule scenario verifies the native service on Ubuntu 24.04, Ubuntu 26.04, and Arch Linux. On a clean guest it installs 0.11.4, seeds a SQLite database sentinel and a persistent data file, then upgrades to the pinned release. An interrupted fixture can resume without discarding its database or downloaded models. Verification checks retained state and the test-only secret, Python 3.11, installed package metadata and dependency consistency, systemd ownership/state, and the loopback UI. It does not configure a model provider, create an Open WebUI user, or provision external databases.
