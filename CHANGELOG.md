@@ -5,6 +5,8 @@ All notable changes to this collection are documented in this file.
 ## 0.5.0
 
 - deps: update ComfyUI to v0.44.0 and require PyTorch 2.7 or later in built-in profiles
+- deps: update llama.cpp to v0.9.0 (installer build b12110)
+- fix(llama): decompress accelerator probes with supported options and make them executable
 
 ## 0.4.0
 

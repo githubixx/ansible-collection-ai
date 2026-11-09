@@ -6,31 +6,33 @@ This document records how `githubixx.ai.llama` relates to `https://llama.app/ins
 
 - Installer: <https://llama.app/install.sh>
 - Artifact bucket: <https://huggingface.co/buckets/ggml-org/install.sh>
-- Role default release identifier: `b11200`
+- Role default release identifier: `b12110` (the same commit as llama.cpp stable release `v0.9.0`)
 - Supported normal installation platform: Linux x86_64 on Ubuntu 24.04, Ubuntu 26.04, and Arch Linux.
 
 The upstream installer identifies Linux architecture, then tries CUDA, ROCm, Vulkan, and CPU in that order. It downloads small native probe helpers and chooses a feature-specific `llama-app.zst` executable. On macOS it separately selects a supported Metal binary.
 
 ## Version Selection
 
-Use the release identifier published by the installer artifact bucket, not a GitHub release tag by itself. Query the current installer-supported version with:
+Use a release identifier published by the installer artifact bucket, not a GitHub release tag by itself. The bucket's latest build may be newer than the latest stable GitHub release. Query both before selecting a version:
 
 ```sh
 curl -fsSL https://huggingface.co/buckets/ggml-org/install.sh/resolve/latest
+gh api repos/ggml-org/llama.cpp/releases/latest --jq .tag_name
+git ls-remote --tags https://github.com/ggml-org/llama.cpp.git
 ```
 
-On 2026-10-01, that endpoint returns `b11200`. GitHub can publish a newer `b...` pre-release or stable `v...` tag before the corresponding installer probe helpers and feature-specific binaries are available in the bucket. Before updating `llama_version`, confirm that `llama-probe` can download the required helper and selected artifact for every supported hardware family.
+On 2026-11-09, the bucket returns `b12182`, a development build 72 commits ahead of stable `v0.9.0`. The stable tag points to the same commit as build `b12110`, which has installer artifacts and is the role default. Its binary reports `0.9.0-dev` but identifies the matching build and commit. GitHub can publish a stable `v...` tag without a corresponding installer artifact; use the `b...` tag on the stable commit and verify its artifacts rather than assuming either tag or bucket latest is suitable. Before updating `llama_version`, confirm that `llama-probe` can download the required helper and selected artifact for every supported hardware family.
 
 ## Repeatable Installer Comparison
 
-The 2026-10-01 comparison found the current installer byte-for-byte identical to the archived baseline. No installer or probe-path changes were required for this pin refresh. Accelerator-specific artifacts still need acceptance testing on the intended hardware.
+The 2026-11-09 comparison found that upstream removed a user-local symlink migration and changed version matching to validate build or commit identifiers against `llama version` output. The migration does not apply to the role. The role's existing build-number parsing recognizes the `build 12110,` output; the role continues to use build identifiers rather than adding support for commit-based `g...` identifiers. Backend priority, probe paths, and artifact layout are unchanged. Accelerator-specific artifacts still need acceptance testing on the intended hardware.
 
 The committed [installer archive](../roles/llama/archive/install.sh) is the
 baseline for every review. It is an unmodified copy of
-`https://llama.app/install.sh` verified on 2026-08-28 with SHA-256:
+`https://llama.app/install.sh` verified on 2026-11-09 with SHA-256:
 
 ```text
-cccdfcbd1b55bf6003ac3037588c9f5b3b79aa0a75fe991e97bb218ccdb55e4d
+af64960da4612c90244c402b9b0832c84faf06a53013a698ddc05085b230ef76
 ```
 
 `llama.app/install.sh` is not tracked in the public
@@ -106,7 +108,7 @@ This remains a distinct trust boundary because it executes native upstream probe
 
 Review the current upstream installer and target artifact whenever llama.app changes `install.sh` or a new installer-supported version is adopted.
 
-1. Query the artifact bucket's `latest` endpoint and confirm its identifier is the intended update target.
+1. Compare the artifact bucket's `latest` identifier with the latest stable GitHub release, find the build tag for the stable commit, and confirm the intended build is published in the bucket.
 2. Compare the backend priority, platform/architecture paths, helper names, compression format, and artifact naming with the probe tasks.
 3. Run `llama-probe` on each intended hardware family and retain the printed artifact URL and SHA-256 values.
 4. Verify the selected executable's `llama version` output before updating `llama_version`.

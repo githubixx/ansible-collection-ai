@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    llama_test_version: "b11200"
+    llama_test_version: "b12110"
   tasks:
     - name: Gather llama binary metadata
       ansible.builtin.stat:
@@ -66,3 +66,19 @@
         url: http://127.0.0.1:8080/models
         status_code: 200
       changed_when: false
+
+    - name: Run llama artifact preflight
+      ansible.builtin.include_role:
+        name: llama
+        tasks_from: probe.yml
+
+    - name: Assert llama preflight reported a pinned artifact
+      ansible.builtin.assert:
+        that:
+          - _llama_probe_backend in ['cpu', 'cuda', 'rocm', 'vulkan']
+          - >-
+            _llama_probe_artifact_url ==
+            'https://huggingface.co/buckets/ggml-org/install.sh/resolve/' ~
+            llama_test_version ~ '/x86_64/linux/' ~ _llama_probe_backend ~ '/' ~
+            _llama_probe_config ~ '/llama-app.zst'
+          - _llama_probe_artifact_checksum.stdout.split()[0] is match('^[0-9a-f]{64}$')

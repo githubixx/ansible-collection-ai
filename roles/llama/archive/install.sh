@@ -113,15 +113,6 @@ main() {
 
 	[ "$HOME" ] || die "No HOME, please check your OS"
 
-	# Migrate from the old symlink-based install, remove later
-	if [ "$(readlink ~/.local/bin/llama)" = "$HOME/.llama-app/llama" ]
-	then
-		if   cp -L ~/.local/bin/llama     ~/.local/bin/llama.fix 2>/dev/null
-		then mv    ~/.local/bin/llama.fix ~/.local/bin/llama
-		else rm -f ~/.local/bin/llama
-		fi
-	fi
-
 	[ "$LLAMA_VERSION" ] || LLAMA_VERSION=$(curl -fsSL "$REPO/latest")
 	[ "$LLAMA_VERSION" ] || die "No version found"
 	info "Version: $LLAMA_VERSION"
@@ -150,12 +141,17 @@ main() {
 		return
 	fi
 
-	VERSION=$(~/.llama-app/llama version 2>&1) || die \
+	VERSION=$(~/.llama-app/llama version) || die \
 		"Downloaded llama binary failed to run"
 
+	case "$LLAMA_VERSION" in (b|g|b*[!0-9]*|g*[!0-9a-f]*) ;;
+	(b*) STAMP="build ${LLAMA_VERSION#b},"  ;;
+	(g*) STAMP="commit ${LLAMA_VERSION#g})" ;;
+	esac
+	[ "$STAMP" ] || die "Invalid version: $LLAMA_VERSION"
+
 	case "$VERSION" in
-	("$LLAMA_VERSION"-*) ;;
-	(*"build ${LLAMA_VERSION#b}"*) ;;
+	(*"$STAMP"*) ;;
 	(*) die "Version mismatch: expected $LLAMA_VERSION, got $VERSION" ;;
 	esac
 

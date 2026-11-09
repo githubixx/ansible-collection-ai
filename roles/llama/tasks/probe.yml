@@ -54,9 +54,16 @@
     argv:
       - unzstd
       - --force
-      - --output={{ llama_probe_download_directory }}/cuda-probe
+      - -o
+      - "{{ llama_probe_download_directory }}/cuda-probe"
       - "{{ llama_probe_download_directory }}/cuda-probe.zst"
   changed_when: true
+
+- name: Make llama CUDA probe executable
+  when: _llama_probe_cuda_download is succeeded
+  ansible.builtin.file:
+    path: "{{ llama_probe_download_directory }}/cuda-probe"
+    mode: "0700"
 
 - name: Run llama CUDA probe
   when: _llama_probe_cuda_download is succeeded
@@ -83,9 +90,16 @@
     argv:
       - unzstd
       - --force
-      - --output={{ llama_probe_download_directory }}/rocm-probe
+      - -o
+      - "{{ llama_probe_download_directory }}/rocm-probe"
       - "{{ llama_probe_download_directory }}/rocm-probe.zst"
   changed_when: true
+
+- name: Make llama ROCm probe executable
+  when: _llama_probe_rocm_download is succeeded
+  ansible.builtin.file:
+    path: "{{ llama_probe_download_directory }}/rocm-probe"
+    mode: "0700"
 
 - name: Run llama ROCm probe
   when: _llama_probe_rocm_download is succeeded
@@ -112,9 +126,16 @@
     argv:
       - unzstd
       - --force
-      - --output={{ llama_probe_download_directory }}/vulkan-probe
+      - -o
+      - "{{ llama_probe_download_directory }}/vulkan-probe"
       - "{{ llama_probe_download_directory }}/vulkan-probe.zst"
   changed_when: true
+
+- name: Make llama Vulkan probe executable
+  when: _llama_probe_vulkan_download is succeeded
+  ansible.builtin.file:
+    path: "{{ llama_probe_download_directory }}/vulkan-probe"
+    mode: "0700"
 
 - name: Run llama Vulkan probe
   when: _llama_probe_vulkan_download is succeeded
