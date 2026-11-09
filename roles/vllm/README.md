@@ -12,7 +12,7 @@ Installs vLLM from a pinned PyPI package in a `uv`-managed Python 3.12 virtual e
 - Network access to PyPI, Astral's Python distributions, and, for AMD, the vLLM ROCm wheel index during installation.
 - A configured and supported GPU runtime:
   - NVIDIA: a driver compatible with the CUDA PyTorch backend chosen by `uv --torch-backend=auto`.
-  - AMD: ROCm 7.2.3 and `glibc >= 2.35`.
+  - AMD: ROCm 7.2.3 and `glibc >= 2.39` for the default vLLM 0.32.0 wheel.
 
 The role does not validate GPU availability during provisioning. The selected accelerator must match the preconfigured vendor runtime.
 
@@ -22,7 +22,7 @@ All public variables use the `vllm_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `vllm_version` | `0.30.0` | Pinned vLLM PyPI release. |
+| `vllm_version` | `0.32.0` | Pinned vLLM PyPI release. |
 | `vllm_package` | `vllm` | PyPI package name. |
 | `vllm_uv_executable` | `uv` | Preinstalled `uv` executable. |
 | `vllm_python_version` | `3.12` | Python runtime requested from `uv`. |
@@ -46,7 +46,13 @@ All public variables use the `vllm_` prefix.
 
 Changing `vllm_accelerator` rebuilds the virtual environment. This prevents incompatible CUDA and ROCm Python dependencies from being reused across installations.
 
-The default AMD profile uses `https://wheels.vllm.ai/rocm/0.30.0/rocm723`. Keep the package release, wheel index, Python 3.12, and host ROCm runtime compatible when overriding versions. Molecule checks the vLLM ROCm package suffix and parses PyTorch's installed `torch/version.py` HIP and CUDA build fields without executing that file or loading GPU libraries. PyTorch's package version need not contain `rocm`.
+The default AMD profile uses `https://wheels.vllm.ai/rocm/0.32.0/rocm723`. Keep the package release, wheel index, Python 3.12, and host ROCm runtime compatible when overriding versions. Molecule checks the vLLM ROCm package suffix and parses PyTorch's installed `torch/version.py` HIP and CUDA build fields without executing that file or loading GPU libraries. PyTorch's package version need not contain `rocm`.
+
+## Upgrades
+
+Review the [v0.31.0](https://github.com/vllm-project/vllm/releases/tag/v0.31.0) and [v0.32.0](https://github.com/vllm-project/vllm/releases/tag/v0.32.0) release notes before upgrading. In particular, v0.32.0 no longer allows all CORS origins by default; configure `--allowed-origins` for browser clients when needed. It removes `--mamba-cache-mode all` and changes Responses API reasoning stream events. v0.31.0 also gates per-request multimodal options behind `--trust-request-mm-kwargs` and removes or renames several options. Review custom service arguments and API clients for compatibility.
+
+For NVIDIA, upstream recommends running `/opt/vllm/venv/bin/vllm download-kernels` in the same virtual environment after each installation or upgrade to install matching FlashInfer kernels. Without them, kernels may be downloaded and compiled at startup, increasing startup time. The role does not run this command.
 
 ## Examples
 
