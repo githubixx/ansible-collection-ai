@@ -6,11 +6,13 @@ This document records how `githubixx.ai.openshell` relates to NVIDIA's upstream 
 
 - Repository: <https://github.com/NVIDIA/OpenShell>
 - Installer: <https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh>
-- Last reviewed release: `v0.1.2`
-- Role default: `openshell_version: "0.1.2"`
+- Last reviewed release: `v0.1.7` (2026-11-09)
+- Role default: `openshell_version: "0.1.7"`
 - Supported role platform: Linux x86_64 on Ubuntu 24.04, Ubuntu 26.04, and Arch Linux.
 
 The role downloads pinned CLI, gateway, and policy prover release artifacts directly from GitHub Releases. The archive checksums in [the role defaults](../roles/openshell/defaults/main.yml) must match the configured release.
+
+The v0.1.7 archive names and executable layout remain unchanged, and the gateway's minimum GNU libc version remains 2.28. Downloaded archives match both release asset digests and the corresponding checksum manifests. The role's schema-v2 Docker configuration and packaged user-service startup sequence remain compatible.
 
 ## Intentional Differences
 
@@ -39,6 +41,6 @@ Review the current upstream installer and the target release whenever NVIDIA cha
 
 ## Triggering a Review
 
-The 0.1.2 review follows the tagged native package and service definitions. The gateway template uses schema v2 and Docker fields; startup runs `config preflight`. Legacy binaries, orphaned state, and older configuration schemas require the [operator-managed clean migration](https://docs.nvidia.com/openshell/latest/upgrade/0-1-0.html). Existing TOML remains operator-owned. The role does not install the packaged MicroVM driver, which is outside its Docker-only scope.
+The 0.1.7 review follows the tagged native package and service definitions. The gateway template uses schema v2 and Docker fields; startup runs `config preflight` and generates a local TLS bundle. The default local bundle enables mTLS user authentication; the role does not opt into unauthenticated access. Existing TOML remains operator-owned, so custom authentication and new preflight constraints require review before upgrading. See the [role upgrade notes](../roles/openshell/README.md#upgrading-within-01x) for runtime and audit changes. Legacy binaries, orphaned state, and older configuration schemas require the [operator-managed clean migration](https://docs.nvidia.com/openshell/latest/upgrade/0-1-0.html). The role does not install the packaged MicroVM driver, which is outside its Docker-only scope.
 
 A request such as "NVIDIA changed OpenShell `install.sh`; review the role" is enough to begin this comparison. Include the upstream release or commit when available so the review can be tied to an exact version.

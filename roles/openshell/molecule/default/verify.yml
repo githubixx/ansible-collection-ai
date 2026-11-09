@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    openshell_test_version: "0.1.2"
+    openshell_test_version: "0.1.7"
     openshell_test_user: "{{ ansible_user | default(ansible_facts['user_id']) }}"
   tasks:
     - name: Query OpenShell test user
@@ -51,7 +51,9 @@
     - name: Assert expected OpenShell binary versions
       ansible.builtin.assert:
         that:
-          - "openshell_test_version in (item.stdout ~ item.stderr)"
+          - >-
+            ((item.stdout ~ item.stderr) | regex_findall('[0-9]+\.[0-9]+\.[0-9]+') | first) ==
+            openshell_test_version
       loop: "{{ openshell_test_versions.results }}"
 
     - name: Gather OpenShell configuration metadata
@@ -62,6 +64,9 @@
         - "{{ openshell_test_home }}/.config/systemd/user/openshell-gateway.service"
         - "{{ openshell_test_home }}/.local/state/openshell/tls/ca.crt"
         - "{{ openshell_test_home }}/.local/state/openshell/tls/server/tls.crt"
+        - "{{ openshell_test_home }}/.config/openshell/gateways/openshell/mtls/ca.crt"
+        - "{{ openshell_test_home }}/.config/openshell/gateways/openshell/mtls/tls.crt"
+        - "{{ openshell_test_home }}/.config/openshell/gateways/openshell/mtls/tls.key"
       register: openshell_test_configuration
 
     - name: Assert OpenShell configuration and TLS state exist

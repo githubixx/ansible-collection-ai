@@ -18,7 +18,7 @@ All public variables use the `openshell_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `openshell_version` | `0.1.2` | Pinned OpenShell CLI, gateway, and prover release. |
+| `openshell_version` | `0.1.7` | Pinned OpenShell CLI, gateway, and prover release. |
 | `openshell_user` | `ansible_user` | Non-root user owning the local gateway. |
 | `openshell_bin_directory` | `~/.local/bin` | Executable directory owned by `openshell_user`. |
 | `openshell_compute_driver` | `docker` | The selected gateway driver. Only Docker is supported initially. |
@@ -27,7 +27,7 @@ All public variables use the `openshell_` prefix.
 | `openshell_gateway_service_enabled` | `true` | Enable the user service. |
 | `openshell_gateway_service_started` | `true` | Start the user service and register the local gateway. |
 
-The default checksums correspond to v0.1.2 x86_64 release artifacts. Override the version, archive URLs, and all three checksums together only after verifying the upstream release checksums.
+The default checksums correspond to v0.1.7 x86_64 release artifacts. Override the version, archive URLs, and all three checksums together only after verifying the upstream release checksums.
 
 Check the [latest OpenShell release](https://github.com/NVIDIA/OpenShell/releases/latest) for the current version and SHA-256 checksums.
 
@@ -45,6 +45,16 @@ Follow the [upstream 0.1.0 migration guide](https://docs.nvidia.com/openshell/la
 4. Import the saved provider profiles, recreate sandboxes and credentials as required, and update workflows using removed managed inference routes or old API/policy fields.
 
 Fresh gateway configuration selects Docker with schema version 2 and the minimal `nvcr.io/nvidia/base/ubuntu:24.04` workload image. It includes no agent CLI or image-baked policy; supply a fully qualified workload image containing the required tools. The gateway's sandbox and supervisor runtime images default to its own release. Startup preflight validates configuration before generating certificates or starting the gateway.
+
+## Upgrading Within 0.1.x
+
+Review the upstream [v0.1.5](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.5), [v0.1.6](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.6), and [v0.1.7](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.7) upgrade notes before updating:
+
+- v0.1.6 requires gateway authentication. The default local setup generates a TLS bundle and uses mTLS for CLI access; this role does not enable unauthenticated access. For user-managed configurations, ensure a supported authentication mechanism is configured before restarting.
+- New sandboxes require matching supervisor and sandbox runtime versions. Update both together if you override the default runtime images; running older sandboxes retain their existing connection direction.
+- Supervisor audit files changed from `openshell-ocsf.*.log` to `openshell-ocsf.*.jsonl` in v0.1.5. Collect any needed old logs and update collector patterns.
+- v0.1.7 emits OCSF 1.8.0 only and ignores the deprecated schema-version settings. Update downstream consumers expecting OCSF 1.1 or 1.3.
+- The new preflight rejects a `supervisor_pool` table for drivers that do not use shared supervision. Review and validate retained user-managed configuration; the role does not rewrite it.
 
 ## Example
 
