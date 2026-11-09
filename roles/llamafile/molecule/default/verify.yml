@@ -6,6 +6,7 @@
   vars:
     llamafile_test_artifact: "/opt/llamafile/models/Qwen3.5-0.8B-Q8_0.llamafile"
     llamafile_test_checksum: "d97ed2e8729437dd3d044405ba5035f352d253a0987f19e610eb538b0951a805"
+    llamafile_test_version: "0.10.6"
   tasks:
     - name: Gather llamafile model metadata
       ansible.builtin.stat:
@@ -31,6 +32,20 @@
       ansible.builtin.assert:
         that:
           - llamafile_test_artifact_checksum.stat.checksum == llamafile_test_checksum
+
+    - name: Query bundled llamafile version
+      ansible.builtin.command:
+        argv:
+          - /bin/sh
+          - "{{ llamafile_test_artifact }}"
+          - --version
+      register: llamafile_test_version_query
+      changed_when: false
+
+    - name: Assert expected bundled llamafile version
+      ansible.builtin.assert:
+        that:
+          - llamafile_test_version_query.stdout | trim == 'llamafile v' ~ llamafile_test_version
 
     - name: Gather llamafile transfer log metadata
       ansible.builtin.stat:
