@@ -2,6 +2,10 @@
 
 All notable changes to this collection are documented in this file.
 
+## 0.5.0
+
+- deps: update ComfyUI to v0.44.0 and require PyTorch 2.7 or later in built-in profiles
+
 ## 0.4.0
 
 **Breaking change:** OpenShell 0.0.x installations cannot be upgraded in place to 0.1.2. Follow the [OpenShell migration instructions](roles/openshell/README.md#upgrading-from-00x) before upgrading.
