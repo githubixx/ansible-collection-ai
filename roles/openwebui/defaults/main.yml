@@ -1,7 +1,7 @@
 ---
 # Open WebUI package release to install. Keep the package name and version
 # synchronized when updating this pinned upstream release.
-openwebui_version: "0.11.4"
+openwebui_version: "0.13.3"
 openwebui_package: "open-webui[all]"
 
 # This role currently supports x86_64 Linux hosts only.

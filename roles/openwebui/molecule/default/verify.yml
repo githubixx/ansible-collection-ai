@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    openwebui_test_version: "0.11.4"
+    openwebui_test_version: "0.13.3"
   tasks:
     - name: Query Open WebUI service user
       ansible.builtin.getent:
