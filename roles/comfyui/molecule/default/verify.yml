@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    comfyui_test_version: "v0.38.0"
+    comfyui_test_version: "v0.44.0"
   tasks:
     - name: Check ComfyUI dependency consistency
       become: true
@@ -15,6 +15,16 @@
           - -m
           - pip
           - check
+      changed_when: false
+
+    - name: Check ComfyUI PyTorch minimum version
+      become: true
+      become_user: comfyui
+      ansible.builtin.command:
+        argv:
+          - /opt/comfyui/venv/bin/python
+          - -c
+          - "from packaging.version import Version; import torch; assert Version(torch.__version__) >= Version('2.7')"
       changed_when: false
 
     - name: Query ComfyUI service user
