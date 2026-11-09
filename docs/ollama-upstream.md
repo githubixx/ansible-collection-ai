@@ -6,11 +6,13 @@ This document records how `githubixx.ai.ollama` relates to Ollama's upstream ins
 
 - Repository: <https://github.com/ollama/ollama>
 - Installer: <https://raw.githubusercontent.com/ollama/ollama/main/scripts/install.sh>
-- Last reviewed release: `v0.35.0`
-- Role default: `ollama_version: "0.35.0"`
+- Last reviewed release: `v0.40.15` (2026-11-09)
+- Role default: `ollama_version: "0.40.15"`
 - Supported role platform: Linux x86_64 on Ubuntu 24.04, Ubuntu 26.04, and Archlinux.
 
 The role downloads `ollama-linux-amd64.tar.zst` directly from GitHub Releases. The checksum in [the role defaults](../roles/ollama/defaults/main.yml) must match the configured release.
+
+The v0.40.15 installer is byte-for-byte identical to v0.35.0. The release's `sha256sum.txt` and GitHub asset digest agree on the base archive checksum. Upstream still installs the separate ROCm archive on AMD hosts; this role intentionally does not. Its upgrade removes the old runtime library directory, including any operator-supplied accelerator libraries, while retaining model state.
 
 ## Intentional Differences
 
