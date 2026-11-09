@@ -4,6 +4,7 @@ All notable changes to this collection are documented in this file.
 
 ## 0.5.0
 
+- deps(openshell)!: update OpenShell to v0.1.7; audit records now use OCSF 1.8.0 and gateway authentication is required
 - deps: update Ollama to v0.40.15
 - chore(llamafile): verify the existing catalog against latest stable llamafile 0.10.6
 - deps: update ComfyUI to v0.44.0 and require PyTorch 2.7 or later in built-in profiles
