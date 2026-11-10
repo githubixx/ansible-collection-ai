@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    ollama_test_version: "0.40.15"
+    ollama_test_version: "0.40.16"
     ollama_test_model: "gemma3:270m"
   tasks:
     - name: Gather Ollama binary metadata
