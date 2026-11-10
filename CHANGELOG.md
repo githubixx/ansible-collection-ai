@@ -2,8 +2,9 @@
 
 All notable changes to this collection are documented in this file.
 
-## Unreleased
+## 0.6.0
 
+- deps(ollama): update Ollama to v0.40.16
 - deps(openshell)!: update OpenShell to v0.1.8; update OCSF sandbox attribution and static credential placement expectations
 
 ## 0.5.0
