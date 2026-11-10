@@ -2,6 +2,10 @@
 
 All notable changes to this collection are documented in this file.
 
+## Unreleased
+
+- deps(openshell)!: update OpenShell to v0.1.8; update OCSF sandbox attribution and static credential placement expectations
+
 ## 0.5.0
 
 - deps(vllm): update vLLM to v0.32.0; review changed CORS defaults and removed options before upgrading
