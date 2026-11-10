@@ -8,7 +8,7 @@ Installs the NVIDIA OpenShell CLI, standalone local gateway, and policy prover f
 - Linux x86_64 running Ubuntu 24.04, Ubuntu 26.04, or Arch Linux.
 - systemd with a functioning user manager; the role enables lingering for the selected user.
 - GNU libc 2.28 or later for `openshell-gateway`. The CLI is statically linked with musl and does not have this runtime requirement.
-- Docker Engine installed and usable by `openshell_user`. You can use the [githubixx.docker](https://github.com/githubixx/ansible-role-docker) role to install Docker. This role validates Docker socket access but intentionally does not install or configure Docker. When a running systemd user manager lacks the user's Docker group, the role restarts that manager before starting the gateway.
+- Docker Engine 28.0 or later installed and usable by `openshell_user`. You can use the [githubixx.docker](https://github.com/githubixx/ansible-role-docker) role to install Docker. This role validates Docker socket access but intentionally does not install or configure Docker. When a running systemd user manager lacks the user's Docker group, the role restarts that manager before starting the gateway.
 
 NVIDIA officially supports Debian/Ubuntu host platforms. Arch Linux is covered by this role as a best-effort target and is tested separately; it is not in the upstream host support matrix.
 
@@ -18,7 +18,7 @@ All public variables use the `openshell_` prefix.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `openshell_version` | `0.1.7` | Pinned OpenShell CLI, gateway, and prover release. |
+| `openshell_version` | `0.1.8` | Pinned OpenShell CLI, gateway, and prover release. |
 | `openshell_user` | `ansible_user` | Non-root user owning the local gateway. |
 | `openshell_bin_directory` | `~/.local/bin` | Executable directory owned by `openshell_user`. |
 | `openshell_compute_driver` | `docker` | The selected gateway driver. Only Docker is supported initially. |
@@ -27,7 +27,7 @@ All public variables use the `openshell_` prefix.
 | `openshell_gateway_service_enabled` | `true` | Enable the user service. |
 | `openshell_gateway_service_started` | `true` | Start the user service and register the local gateway. |
 
-The default checksums correspond to v0.1.7 x86_64 release artifacts. Override the version, archive URLs, and all three checksums together only after verifying the upstream release checksums.
+The default checksums correspond to v0.1.8 x86_64 release artifacts. Override the version, archive URLs, and all three checksums together only after verifying the upstream release checksums.
 
 Check the [latest OpenShell release](https://github.com/NVIDIA/OpenShell/releases/latest) for the current version and SHA-256 checksums.
 
@@ -48,12 +48,14 @@ Fresh gateway configuration selects Docker with schema version 2 and the minimal
 
 ## Upgrading Within 0.1.x
 
-Review the upstream [v0.1.5](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.5), [v0.1.6](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.6), and [v0.1.7](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.7) upgrade notes before updating:
+Review the upstream [v0.1.5](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.5), [v0.1.6](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.6), [v0.1.7](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.7), and [v0.1.8](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.8) upgrade notes before updating:
 
 - v0.1.6 requires gateway authentication. The default local setup generates a TLS bundle and uses mTLS for CLI access; this role does not enable unauthenticated access. For user-managed configurations, ensure a supported authentication mechanism is configured before restarting.
 - New sandboxes require matching supervisor and sandbox runtime versions. Update both together if you override the default runtime images; running older sandboxes retain their existing connection direction.
 - Supervisor audit files changed from `openshell-ocsf.*.log` to `openshell-ocsf.*.jsonl` in v0.1.5. Collect any needed old logs and update collector patterns.
 - v0.1.7 emits OCSF 1.8.0 only and ignores the deprecated schema-version settings. Update downstream consumers expecting OCSF 1.1 or 1.3.
+- v0.1.8 changes OCSF sandbox attribution fields; update SIEM parsers that read the former top-level container fields. Static provider credentials using custom headers, query parameters, or path slots need explicit placement metadata. Filesystem policies must use symlink target paths, and REST endpoints no longer accept HTTP upgrades; configure WebSocket endpoints and rules explicitly.
+- OpenShell v0.1.8 documents Docker Engine 28.0 as the minimum for the Docker driver.
 - The new preflight rejects a `supervisor_pool` table for drivers that do not use shared supervision. Review and validate retained user-managed configuration; the role does not rewrite it.
 
 ## Example
@@ -104,7 +106,7 @@ openshell_group: root
 
 ## Compute driver
 
-The gateway configuration defaults to Docker and listens on `127.0.0.1:17670`. Install and configure Docker Engine independently, including granting `openshell_user` access to the Docker socket, typically through the `docker` group. Podman, Kubernetes, MicroVM, remote gateways, Windows, macOS, and aarch64 are outside the initial role scope.
+The gateway configuration defaults to Docker and listens on `127.0.0.1:17670`. Install and configure Docker Engine 28.0 or later independently, including granting `openshell_user` access to the Docker socket, typically through the `docker` group. Podman, Kubernetes, MicroVM, remote gateways, Windows, macOS, and aarch64 are outside the initial role scope.
 
 ## Testing
 

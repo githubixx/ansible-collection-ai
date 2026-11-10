@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    openshell_test_version: "0.1.7"
+    openshell_test_version: "0.1.8"
     openshell_test_user: "{{ ansible_user | default(ansible_facts['user_id']) }}"
   tasks:
     - name: Query OpenShell test user
